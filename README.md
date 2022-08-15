@@ -32,7 +32,7 @@ Important: this application uses various AWS services and there are costs associ
 
 In this pattern we created SQS queue, Fargate Service, and DynamoDB table.
 Fargate service is receiving messages from SQS queue using long polling (20 seconds)
-Once you send SQS message to the queue, Fargate service receives this message, parses it, and puts message text into a new item of DynamoDB table.
+Once you send SQS message to the queue, Fargate service receives this message, parses it, and puts the message text into a new item of DynamoDB table.
 
 
 ## Testing
@@ -53,7 +53,7 @@ Once you send SQS message to the queue, Fargate service receives this message, p
 6. Open ECS console
 7. Find cluster with name `go-service-cluster`
 8. Find service named `go-fargate-service`
-9. Open CloudWatch logs for active task of this service and you'll messages from the service in the log.
+9. Open CloudWatch logs for an active task of this service and you'll see the messages from the service in the log.
 
 ![image2](images/image2.png)
 
