@@ -43,7 +43,7 @@ export class FargateServiceStack extends Stack {
     });
 
     const logGroup = new LogGroup(this, "FargateLogGroup", {
-      logGroupName: "/ecs/go-service"
+      //logGroupName: "/ecs/go-service"
     })
 
     const taskDef = new ecs.FargateTaskDefinition(this, "MyTask", {
