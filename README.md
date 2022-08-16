@@ -1,4 +1,4 @@
-# SQS to Fargate to DynamoDB Pattern
+# Build and deploy message processing service using Fargate
 
 This pattern demonstrates how to build and deploy Fargate service using Go which receives messages from SQS queue and stores it in DynamoDB table.
 
