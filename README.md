@@ -24,7 +24,7 @@ Important: this application uses various AWS services and there are costs associ
     cd sqs-fargate-ddb-cdk-go
     ```
 
-3. From the command line, use the following command to deploy the stack using CDK:
+3. From the command line, use the following commands to deploy the stack using CDK:
     ```
     docker build -t go-fargate .
     cd cdk
@@ -70,12 +70,12 @@ Once you send SQS message to the queue, Fargate service receives this message, p
 
 ## Cleanup
 
-1. Delete the stack
+1. Delete the stack:
     ```
     cd cdk
     cdk destroy --profile ${AWS_PROFILE}
     ```
-2. Confirm the stack has been deleted
+2. Confirm the stack has been deleted:
     ```
     aws cloudformation list-stacks --query "StackSummaries[?contains(StackName,'SqsFargate')].StackStatus" --profile ${AWS_PROFILE}
     ```
