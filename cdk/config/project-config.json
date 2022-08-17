@@ -1,0 +1,12 @@
+{
+  "tableName": "sqs-fargate-ddb-table",
+  "queueName":"sqs-fargate-queue",
+  "clusterName":"go-service-cluster",
+  "service": {
+    "name": "go-fargate-service",
+    "logGroup": "/ecs/aws-samples/go-service-logs",
+    "cpu": 512,
+    "memory" : 1024,
+    "logStreamPrefix":"go-service"
+  }
+}

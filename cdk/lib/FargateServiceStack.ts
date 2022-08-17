@@ -1,34 +1,35 @@
-import { App, Duration, Stack, StackProps } from 'aws-cdk-lib';
+import { App, Duration, Stack, StackProps, RemovalPolicy } from 'aws-cdk-lib';
 import * as path from 'path';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import * as ecs from 'aws-cdk-lib/aws-ecs';
-import * as iam from 'aws-cdk-lib/aws-iam';
 import * as sqs from 'aws-cdk-lib/aws-sqs';
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import { LogGroup } from 'aws-cdk-lib/aws-logs';
 import { DockerImageAsset } from 'aws-cdk-lib/aws-ecr-assets';
 import { ContainerImage, FargatePlatformVersion } from 'aws-cdk-lib/aws-ecs';
 
+import { default as config } from '../config/config';
+
 
 export class FargateServiceStack extends Stack {
   constructor(scope: App, id: string, props?: StackProps) {
     super(scope, id, props);
 
-    const ddbTable = new dynamodb.Table(this, 'Table', {
-      tableName: "sqs-fargate-ddb-table",
+    const ddbTable = new dynamodb.Table(this, "Table", {
+      tableName: config.tableName,
       partitionKey: { name: 'id', type: dynamodb.AttributeType.STRING },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
-      //removalPolicy: cdk.RemovalPolicy.RETAIN
+      removalPolicy: RemovalPolicy.DESTROY //change it if you want to keep the table
     });
 
 
     const queue = new sqs.Queue(this, "SqsQueue", {
-      queueName: "sqs-fargate-queue",
+      queueName: config.queueName,
       encryption: sqs.QueueEncryption.KMS_MANAGED,
       visibilityTimeout: Duration.minutes(15),
     })
 
-    const asset = new DockerImageAsset(this, 'go-docker-image', {
+    const asset = new DockerImageAsset(this, "GoDockerImage", {
       directory: path.join(__dirname, "..", ".."),
     });
 
@@ -36,19 +37,19 @@ export class FargateServiceStack extends Stack {
       maxAzs: 3 // Default is all AZs in the region
     });
 
-    const cluster = new ecs.Cluster(this, "TestCluster", {
+    const cluster = new ecs.Cluster(this, "EcsCluster", {
       vpc: vpc,
-      clusterName: "go-service-cluster",
+      clusterName: config.clusterName,
       containerInsights: false
     });
 
     const logGroup = new LogGroup(this, "FargateLogGroup", {
-      //logGroupName: "/ecs/go-service"
+      logGroupName: config.service.logGroup
     })
 
     const taskDef = new ecs.FargateTaskDefinition(this, "MyTask", {
-      cpu: 512,
-      memoryLimitMiB: 1024,
+      cpu: config.service.cpu,
+      memoryLimitMiB: config.service.memory,
     })
 
     const container = new ecs.ContainerDefinition(this, "MyContainer", {
@@ -60,7 +61,7 @@ export class FargateServiceStack extends Stack {
       },
       logging: new ecs.AwsLogDriver({
         logGroup: logGroup,
-        streamPrefix: `go-service`,
+        streamPrefix: config.service.logStreamPrefix,
       })
     }
     )
@@ -69,7 +70,7 @@ export class FargateServiceStack extends Stack {
       taskDefinition: taskDef,
       cluster: cluster,
       platformVersion: FargatePlatformVersion.VERSION1_4,
-      serviceName: "go-fargate-service",
+      serviceName: config.service.name,
       desiredCount: 1
     })
 
