@@ -7,7 +7,7 @@ Important: this application uses various AWS services and there are costs associ
 ## Requirements
 
 * [Create an AWS account](https://portal.aws.amazon.com/gp/aws/developer/registration/index.html) if you do not already have one and log in. The IAM user that you use must have sufficient permissions to make necessary AWS service calls and manage AWS resources.
-* [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/install-cliv2.html) installed and configured
+* [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/install-cliv2.html) installed and configured with named AWS profile
 * [Git](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git) installed
 * [AWS CDK](https://docs.aws.amazon.com/cdk/v2/guide/getting_started.html) installed
 * [Go](https://go.dev/doc/install) installed
@@ -19,20 +19,24 @@ Important: this application uses various AWS services and there are costs associ
     ```
     git clone https://github.com/aws-samples/sqs-fargate-ddb-cdk-go.git
     ```
-1. Change directory to the pattern directory:
+2. Change directory to the pattern directory:
     ```
     cd sqs-fargate-ddb-cdk-go
     ```
-1. From the command line, use the following command to deploy the stack using CDK:
+
+3. From the command line, use the following command to deploy the stack using CDK:
     ```
-    make deploy
+    docker build -t go-fargate .
+    cd cdk
+    npm i
+    cdk deploy --profile ${AWS_PROFILE}
     ```
 
 ## How it works
 
 In this pattern we created SQS queue, Fargate Service, and DynamoDB table.
 Fargate service is receiving messages from SQS queue using long polling (20 seconds)
-Once you send SQS message to the queue, Fargate service receives this message, parses it, and puts the message text into a new item of DynamoDB table.
+Once you send SQS message to the queue, Fargate service receives this message, processes it, and puts the message text into a new item of DynamoDB table.
 
 
 ## Testing
@@ -62,15 +66,18 @@ Once you send SQS message to the queue, Fargate service receives this message, p
 
 ![image3](images/image3.png)
 
+12. Check CloudWatch dashboard `go-service-dashboard` to monitor number of messages received from SQS and added into DynamoDB by the service.
+
 ## Cleanup
 
 1. Delete the stack
     ```
-    make destroy
+    cd cdk
+    cdk destroy --profile ${AWS_PROFILE}
     ```
 2. Confirm the stack has been deleted
     ```
-    aws cloudformation list-stacks --query "StackSummaries[?contains(StackName,'SqsFargate')].StackStatus"
+    aws cloudformation list-stacks --query "StackSummaries[?contains(StackName,'SqsFargate')].StackStatus" --profile ${AWS_PROFILE}
     ```
 
 

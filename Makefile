@@ -1,8 +1,12 @@
-.PHONY: build build_docker deploy
+.PHONY: init build build_docker deploy
 
 .EXPORT_ALL_VARIABLES:
 AWS_PROFILE = default
 GOPROXY = direct
+
+init:
+	cd cdk;
+	npm i
 
 build_docker:
 	docker build -t go-fargate .
