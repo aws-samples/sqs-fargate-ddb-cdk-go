@@ -4,6 +4,7 @@ import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import * as ecs from 'aws-cdk-lib/aws-ecs';
 import * as sqs from 'aws-cdk-lib/aws-sqs';
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
+import * as cw from 'aws-cdk-lib/aws-cloudwatch';
 import { LogGroup } from 'aws-cdk-lib/aws-logs';
 import { DockerImageAsset } from 'aws-cdk-lib/aws-ecr-assets';
 import { ContainerImage, FargatePlatformVersion } from 'aws-cdk-lib/aws-ecs';
@@ -78,6 +79,37 @@ export class FargateServiceStack extends Stack {
     queue.grantConsumeMessages(taskDef.taskRole)
 
     ddbTable.grantWriteData(taskDef.taskRole)
+
+    //Add CloudWatch dashboard
+    const dashboardStart = "-P1D" // Start from 7 days in the past
+    const dashboard = new cw.Dashboard(this,"ServiceDashboard",{
+      dashboardName:config.dashboard.name,
+      start:dashboardStart
+    });
+
+    dashboard.addWidgets(new cw.LogQueryWidget({
+      logGroupNames: [config.service.logGroup],
+      view: cw.LogQueryVisualizationType.LINE,
+      queryLines: [
+        'filter @message like /message is saved in DDB/',
+        '| stats count(*) as messagesSavedInDynamoDBCount by bin(5m)',
+        '| sort exceptionCount desc',
+      ],
+      title:config.dashboard.ddbWidgetTitle,
+      width: 24
+    }));
+
+    dashboard.addWidgets(new cw.LogQueryWidget({
+      logGroupNames: [config.service.logGroup],
+      view: cw.LogQueryVisualizationType.LINE,
+      queryLines: [
+        'filter @message like /message received/',
+        '| stats count(*) as sqsMessageReceivedCount by bin(5m)',
+        '| sort exceptionCount desc',
+      ],
+      title:config.dashboard.sqsWidgetTitle,
+      width: 24
+    }));
 
   }
 }

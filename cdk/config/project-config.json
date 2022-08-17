@@ -8,5 +8,10 @@
     "cpu": 512,
     "memory" : 1024,
     "logStreamPrefix":"go-service"
+  },
+  "dashboard":{
+    "name":"go-service-dashboard",
+    "ddbWidgetTitle":"Saved to DDB",
+    "sqsWidgetTitle":"Received from SQS"
   }
 }

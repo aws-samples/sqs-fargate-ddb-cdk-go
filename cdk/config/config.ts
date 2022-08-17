@@ -12,6 +12,11 @@ export interface ProjectConfig {
     memory: number
     logStreamPrefix: string
   },
+  dashboard:{
+    name: string,
+    ddbWidgetTitle: string,
+    sqsWidgetTitle: string,
+  }
 }
 
 const config = <ProjectConfig>configFile
