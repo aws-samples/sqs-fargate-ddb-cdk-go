@@ -91,7 +91,7 @@ export class FargateServiceStack extends Stack {
       logGroupNames: [config.service.logGroup],
       view: cw.LogQueryVisualizationType.LINE,
       queryLines: [
-        'filter @message like /message is saved in DDB/',
+        'filter @message like /is saved in DDB/',
         '| stats count(*) as messagesSavedInDynamoDBCount by bin(5m)',
         '| sort exceptionCount desc',
       ],
@@ -103,7 +103,7 @@ export class FargateServiceStack extends Stack {
       logGroupNames: [config.service.logGroup],
       view: cw.LogQueryVisualizationType.LINE,
       queryLines: [
-        'filter @message like /message received/',
+        'filter @message like /is received from SQS/',
         '| stats count(*) as sqsMessageReceivedCount by bin(5m)',
         '| sort exceptionCount desc',
       ],

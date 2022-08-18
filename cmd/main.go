@@ -3,8 +3,12 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"log"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -12,14 +16,13 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
-	uuid "github.com/satori/go.uuid"
 )
 
 var cfg aws.Config
-var ctx = context.Background()
 
 const (
 	visibilityTimeout = 60 * 10
+	waitingTimeout    = 20
 )
 
 type MsgType struct {
@@ -35,32 +38,34 @@ func init() {
 	log.Printf("AWS_PROFILE: %s", awsProfile)
 
 	if awsProfile != "" {
-		log.Println("Use AWS profile")
-		cfg, err = config.LoadDefaultConfig(ctx,
+		log.Printf("Use AWS profile %s", awsProfile)
+		cfg, err = config.LoadDefaultConfig(context.Background(),
 			config.WithSharedConfigProfile(awsProfile),
 		)
 		if err != nil {
-			log.Fatalf("Error loading profile %v", err)
+			log.Fatalf("error loading config %v", err)
 		}
 
 	} else {
 		log.Println("Use container role")
-		cfg, err = config.LoadDefaultConfig(ctx)
+		cfg, err = config.LoadDefaultConfig(context.Background())
 		if err != nil {
-			log.Fatalf("Error loading profile %v", err)
+			log.Fatalf("error loading config %v", err)
 		}
 	}
 }
 
 func main() {
-	log.Println("Service started")
+	log.Println("Service is started")
+	ctx, cancel := context.WithCancel(context.Background())
+
+	signalChan := make(chan os.Signal, 1)
+	signal.Notify(signalChan, os.Interrupt, syscall.SIGTERM)
 
 	queueUrl := os.Getenv("SQS_URL")
-
 	log.Printf("QUEUE_URL: %s", queueUrl)
 
 	tableName := os.Getenv("DDB_TABLE")
-
 	log.Printf("DDB_TABLE: %s", tableName)
 
 	// Create S3 service client
@@ -69,27 +74,47 @@ func main() {
 	// Create DDB service client
 	ddbSvc := dynamodb.NewFromConfig(cfg)
 
-	for {
-		log.Printf("waiting for new message...")
-		_, err := processSQS(sqsSvc, queueUrl, ddbSvc, tableName)
-		if err != nil {
-			log.Fatalf("Error processing message: %#v", err)
-		}
+	defer func() {
+		signal.Stop(signalChan)
+		cancel()
+	}()
 
+loop:
+	for {
+		select {
+		case <-signalChan: //if get SIGTERM
+			log.Println("Got SIGTERM signal, cancelling the context")
+			cancel() //cancel context
+
+		default:
+			_, err := processSQS(ctx, sqsSvc, queueUrl, ddbSvc, tableName)
+
+			if err != nil {
+				if errors.Is(err, context.Canceled) {
+					log.Printf("stop processing, context is cancelled %v", err)
+					break loop
+				}
+
+				log.Fatalf("error processing SQS %v", err)
+			}
+		}
 	}
+	log.Println("service is safely stopped")
+
 }
 
-func processSQS(sqsSvc *sqs.Client, queueUrl string, ddbSvc *dynamodb.Client, tableName string) (bool, error) {
+func processSQS(ctx context.Context, sqsSvc *sqs.Client, queueUrl string, ddbSvc *dynamodb.Client, tableName string) (bool, error) {
 	input := &sqs.ReceiveMessageInput{
 		QueueUrl:            &queueUrl,
 		MaxNumberOfMessages: 1,
 		VisibilityTimeout:   visibilityTimeout,
-		WaitTimeSeconds:     20, //Long polling 20 sec
+		WaitTimeSeconds:     waitingTimeout, // use long polling
 	}
 
 	resp, err := sqsSvc.ReceiveMessage(ctx, input)
+
 	if err != nil {
-		log.Fatalf("Error receiving message %v", err)
+		return false, fmt.Errorf("error receiving message %w", err)
 	}
 
 	log.Printf("received messages: %v", len(resp.Messages))
@@ -99,28 +124,30 @@ func processSQS(sqsSvc *sqs.Client, queueUrl string, ddbSvc *dynamodb.Client, ta
 
 	for _, msg := range resp.Messages {
 		var newMsg MsgType
+		id := *msg.MessageId
 
 		err := json.Unmarshal([]byte(*msg.Body), &newMsg)
 		if err != nil {
-			return false, err
+			return false, fmt.Errorf("error unmarshalling %w", err)
 		}
 
-		log.Printf("message received: %#v", newMsg.Message)
+		log.Printf("message id %s is received from SQS: %#v", id, newMsg.Message)
 
-		err = putToDDB(ddbSvc, tableName, newMsg.Message)
+		err = putToDDB(ctx, ddbSvc, tableName, id, newMsg.Message)
 		if err != nil {
-			return false, err
+			return false, fmt.Errorf("error putting message to DDB %w", err)
 		}
-		log.Printf("message is saved in DDB")
+		log.Printf("message id %s is saved in DDB", id)
 
 		_, err = sqsSvc.DeleteMessage(ctx, &sqs.DeleteMessageInput{
 			QueueUrl:      &queueUrl,
 			ReceiptHandle: msg.ReceiptHandle,
 		})
+
 		if err != nil {
-			return false, err
+			return false, fmt.Errorf("error deleting message from SQS %w", err)
 		}
-		log.Printf("message is deleted from queue")
+		log.Printf("message id %s is deleted from queue", id)
 
 	}
 	return true, nil
@@ -130,18 +157,11 @@ func processSQS(sqsSvc *sqs.Client, queueUrl string, ddbSvc *dynamodb.Client, ta
 func GetUTCTimestampNow() string {
 	t := time.Now().UTC()
 	return t.Format("2006-01-02T15:04:05.000Z")
-
 }
 
-func GetUUID() string {
-	id := uuid.NewV4()
-	return id.String()
-}
-
-func putToDDB(ddbSvc *dynamodb.Client, tableName string, message string) error {
+func putToDDB(ctx context.Context, ddbSvc *dynamodb.Client, tableName string, msgId string, message string) error {
 	inputMap := make(map[string]types.AttributeValue)
 
-	msgId := GetUUID()
 	utcTimeISO := GetUTCTimestampNow()
 
 	inputMap["id"] = &types.AttributeValueMemberS{Value: msgId}
