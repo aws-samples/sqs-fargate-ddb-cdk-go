@@ -1,3 +1,31 @@
+# LocalStack Instructions
+The sample is currently being adjusted to work with LocalStack instead of AWS, however it is not working at the moment, the ecs cluster fails to forward the sqs message to dynamodb.
+Here you can find the necessary steps you need to take.
+1. Navigate into the cloned repo
+2. Make sure the following environment variables are exported:
+```
+export LOCALSTACK_API_KEY=<your_api_key>
+export AWS_PROFILE=default
+```
+The profile was needed when ran against AWS for cdk deploy (even though LocalStack doesn't care). It is right now hardcoded in the main.go file as well as "default" due to propagation issues.
+3. Create the following docker network
+```
+docker network create localstack-shared-net
+```
+4. Run the execution script
+```
+./run-against-ls
+```
+5. Stop LocalStack once you are done
+```
+localstack stop
+```
+This does not happen automatically at the moment because debugging steps on the running container were necessary
+
+
+
+Below you can find the original instructions
+
 # Build and deploy message processing service using Fargate
 
 This pattern demonstrates how to build and deploy Fargate service using Go which receives messages from SQS queue and stores it in DynamoDB table.
