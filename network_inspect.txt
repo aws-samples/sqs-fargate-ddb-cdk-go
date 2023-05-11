@@ -1,0 +1,30 @@
+[
+    {
+        "Name": "localstack-shared-net",
+        "Id": "79224fa8dd0926af5b940f5f7684fd7e319b82f858353a49b7b8528c09eecabd",
+        "Created": "2023-05-11T13:58:24.223348548+02:00",
+        "Scope": "local",
+        "Driver": "bridge",
+        "EnableIPv6": false,
+        "IPAM": {
+            "Driver": "default",
+            "Options": {},
+            "Config": [
+                {
+                    "Subnet": "172.24.0.0/16",
+                    "Gateway": "172.24.0.1"
+                }
+            ]
+        },
+        "Internal": false,
+        "Attachable": false,
+        "Ingress": false,
+        "ConfigFrom": {
+            "Network": ""
+        },
+        "ConfigOnly": false,
+        "Containers": {},
+        "Options": {},
+        "Labels": {}
+    }
+]

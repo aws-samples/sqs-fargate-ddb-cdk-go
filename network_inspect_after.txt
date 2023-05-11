@@ -1,0 +1,38 @@
+[
+    {
+        "Name": "localstack-shared-net",
+        "Id": "79224fa8dd0926af5b940f5f7684fd7e319b82f858353a49b7b8528c09eecabd",
+        "Created": "2023-05-11T13:58:24.223348548+02:00",
+        "Scope": "local",
+        "Driver": "bridge",
+        "EnableIPv6": false,
+        "IPAM": {
+            "Driver": "default",
+            "Options": {},
+            "Config": [
+                {
+                    "Subnet": "172.24.0.0/16",
+                    "Gateway": "172.24.0.1"
+                }
+            ]
+        },
+        "Internal": false,
+        "Attachable": false,
+        "Ingress": false,
+        "ConfigFrom": {
+            "Network": ""
+        },
+        "ConfigOnly": false,
+        "Containers": {
+            "add9f1eeeb7642e86829de91763e53d09c8d25302fa8c2c4decac5b331a6bd93": {
+                "Name": "localstack_main",
+                "EndpointID": "b247cd6833f0ab5e90c88b07a0f7194134c1836b2974feee530e94b1a5cd27ea",
+                "MacAddress": "02:42:ac:18:00:02",
+                "IPv4Address": "172.24.0.2/16",
+                "IPv6Address": ""
+            }
+        },
+        "Options": {},
+        "Labels": {}
+    }
+]

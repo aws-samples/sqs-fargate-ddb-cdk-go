@@ -31,28 +31,30 @@ type MsgType struct {
 
 func init() {
 	log.SetFlags(log.LstdFlags | log.Lmicroseconds)
+	//troubleshooting only
+	os.Setenv("AWS_PROFILE", "ls-sandbox")
 
 	var err error
 
 	awsProfile := os.Getenv("AWS_PROFILE")
 	log.Printf("AWS_PROFILE: %s", awsProfile)
 
-	if awsProfile != "" {
-		log.Printf("Use AWS profile %s", awsProfile)
-		cfg, err = config.LoadDefaultConfig(context.Background(),
-			config.WithSharedConfigProfile(awsProfile),
-		)
-		if err != nil {
-			log.Fatalf("error loading config %v", err)
-		}
+	customResolver := aws.EndpointResolverWithOptionsFunc(func(service, region string, options ...interface{}) (aws.Endpoint, error) {
+		return aws.Endpoint{
+			PartitionID:   "aws",
+			URL:           "http://localstack_main:4566",
+			SigningRegion: region,
+		}, nil
+	})
 
-	} else {
-		log.Println("Use container role")
-		cfg, err = config.LoadDefaultConfig(context.Background())
-		if err != nil {
-			log.Fatalf("error loading config %v", err)
-		}
+	log.Printf("Use AWS profile %s", awsProfile)
+	cfg, err = config.LoadDefaultConfig(context.Background(),
+		config.WithEndpointResolverWithOptions(customResolver),
+	)
+	if err != nil {
+		log.Fatalf("error loading config %v", err)
 	}
+
 }
 
 func main() {
@@ -74,6 +76,7 @@ func main() {
 	// Create DDB service client
 	ddbSvc := dynamodb.NewFromConfig(cfg)
 
+	log.Printf("Service clients created")
 	defer func() {
 		signal.Stop(signalChan)
 		cancel()
@@ -104,16 +107,19 @@ loop:
 }
 
 func processSQS(ctx context.Context, sqsSvc *sqs.Client, queueUrl string, ddbSvc *dynamodb.Client, tableName string) (bool, error) {
+	log.Printf("Process SQS...")
 	input := &sqs.ReceiveMessageInput{
 		QueueUrl:            &queueUrl,
 		MaxNumberOfMessages: 1,
 		VisibilityTimeout:   visibilityTimeout,
 		WaitTimeSeconds:     waitingTimeout, // use long polling
 	}
-
 	resp, err := sqsSvc.ReceiveMessage(ctx, input)
 
 	if err != nil {
+		//enable this to inspect the container
+		//log.Printf("error receiving message %v", err)
+		//time.Sleep(30 * time.Second)
 		return false, fmt.Errorf("error receiving message %w", err)
 	}
 
