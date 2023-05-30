@@ -1,0 +1,64 @@
+name: Deploy on LocalStack 
+
+on:
+  push:
+    paths-ignore:
+      - 'README.md'
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  cdk:
+    name: Setup infrastructure using CDK
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      - name: Install CDK
+        run: |
+          npm install -g aws-cdk-local aws-cdk
+          cdklocal --version
+
+      - name: Install dependencies
+        run: |
+          yarn
+
+      - name: Start LocalStack
+        env:
+          LOCALSTACK_API_KEY: ${{ secrets.LOCALSTACK_API_KEY }}
+          DNS_ADDRESS: 0
+        run: |
+          export SQS_QUEUE="sqs-fargate-queue"
+          export NETWORK_NAME="localstack-shared-net"
+          docker network create $NETWORK_NAME
+          pip install localstack awscli-local[ver1]
+          pip install terraform-local
+          docker pull localstack/localstack-pro:latest
+          # Start LocalStack in the background
+          LAMBDA_DOCKER_NETWORK=$NETWORK_NAME DOCKER_FLAGS="--network $NETWORK_NAME" DEBUG=1 localstack start -d
+          # Wait 30 seconds for the LocalStack container to become ready before timing out
+          echo "Waiting for LocalStack startup..."
+          localstack wait -t 15
+          echo "Startup complete"
+
+      - name: Deploy using CDK
+        run: |
+          docker build -t go-fargate .
+          cd cdk
+          npm install
+          cdklocal bootstrap aws://000000000000/us-east-1
+          cdklocal deploy --require-approval never
+
+      - name: List the resources
+        run: |
+          awslocal sqs list-queues
+          awslocal dynamodb list-tables

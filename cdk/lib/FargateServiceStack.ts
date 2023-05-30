@@ -58,7 +58,7 @@ export class FargateServiceStack extends Stack {
       taskDefinition: taskDef,
       environment: {
         SQS_URL: queue.queueUrl,
-        DDB_TABLE: ddbTable.tableName
+        DDB_TABLE: ddbTable.tableName,
       },
       logging: new ecs.AwsLogDriver({
         logGroup: logGroup,

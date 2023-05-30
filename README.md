@@ -1,86 +1,166 @@
-# Build and deploy message processing service using Fargate
+# Messaging Processing application with SQS, DynamoDB, and Fargate
 
-This pattern demonstrates how to build and deploy Fargate service using Go which receives messages from SQS queue and stores it in DynamoDB table.
-
-Important: this application uses various AWS services and there are costs associated with these services after the Free Tier usage - please see the [AWS Pricing page](https://aws.amazon.com/pricing/) for details. You are responsible for any AWS costs incurred. No warranty is implied in this example.
-
-## Requirements
-
-* [Create an AWS account](https://portal.aws.amazon.com/gp/aws/developer/registration/index.html) if you do not already have one and log in. The IAM user that you use must have sufficient permissions to make necessary AWS service calls and manage AWS resources.
-* [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/install-cliv2.html) installed and configured with named AWS profile
-* [Git](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git) installed
-* [AWS CDK](https://docs.aws.amazon.com/cdk/v2/guide/getting_started.html) installed
-* [Go](https://go.dev/doc/install) installed
-* [Docker](https://docs.docker.com/engine/install/) installed
-
-## Deployment Instructions
-
-1. Create a new directory, navigate to that directory in a terminal and clone the GitHub repository:
-    ```
-    git clone https://github.com/aws-samples/sqs-fargate-ddb-cdk-go.git
-    ```
-2. Change directory to the pattern directory:
-    ```
-    cd sqs-fargate-ddb-cdk-go
-    ```
-
-3. From the command line, use the following commands to deploy the stack using CDK:
-    ```
-    docker build -t go-fargate .
-    cd cdk
-    npm i
-    cdk deploy --profile ${AWS_PROFILE}
-    ```
-
-## How it works
-
-In this pattern we created SQS queue, Fargate Service, and DynamoDB table.
-Fargate service is receiving messages from SQS queue using long polling (20 seconds)
-Once you send SQS message to the queue, Fargate service receives this message, processes it, and puts the message text into a new item of DynamoDB table.
+| Key          | Value                                                                                 |
+| ------------ | ------------------------------------------------------------------------------------- |
+| Environment  | <img src="https://img.shields.io/badge/LocalStack-deploys-4D29B4.svg?logo=data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAABHNCSVQICAgIfAhkiAAAAAlwSFlzAAAKgAAACoABZrFArwAAABl0RVh0U29mdHdhcmUAd3d3Lmlua3NjYXBlLm9yZ5vuPBoAAALbSURBVHic7ZpNaxNRFIafczNTGIq0G2M7pXWRlRv3Lusf8AMFEQT3guDWhX9BcC/uFAr1B4igLgSF4EYDtsuQ3M5GYrTaj3Tmui2SpMnM3PlK3m1uzjnPw8xw50MoaNrttl+r1e4CNRv1jTG/+v3+c8dG8TSilHoAPLZVX0RYWlraUbYaJI2IuLZ7KKUWCisgq8wF5D1A3rF+EQyCYPHo6Ghh3BrP8wb1en3f9izDYlVAp9O5EkXRB8dxxl7QBoNBpLW+7fv+a5vzDIvVU0BELhpjJrmaK2NMw+YsIxunUaTZbLrdbveZ1vpmGvWyTOJToNlsuqurq1vAdWPMeSDzwzhJEh0Bp+FTmifzxBZQBXiIKaAq8BBDQJXgYUoBVYOHKQRUER4mFFBVeJhAQJXh4QwBVYeHMQJmAR5GCJgVeBgiYJbg4T8BswYPp+4GW63WwvLy8hZwLcd5TudvBj3+OFBIeA4PD596nvc1iiIrD21qtdr+ysrKR8cY42itCwUP0Gg0+sC27T5qb2/vMunB/0ipTmZxfN//orW+BCwmrGV6vd63BP9P2j9WxGbxbrd7B3g14fLfwFsROUlzBmNM33XdR6Meuxfp5eg54IYxJvXCx8fHL4F3w36blTdDI4/0WREwMnMBeQ+Qd+YC8h4g78wF5D1A3rEqwBiT6q4ubpRSI+ewuhP0PO/NwcHBExHJZZ8PICI/e73ep7z6zzNPwWP1djhuOp3OfRG5kLROFEXv19fXP49bU6TbYQDa7XZDRF6kUUtEtoFb49YUbh/gOM7YbwqnyG4URQ/PWlQ4ASllNwzDzY2NDX3WwioKmBgeqidgKnioloCp4aE6AmLBQzUExIaH8gtIBA/lFrCTFB7KK2AnDMOrSeGhnAJSg4fyCUgVHsolIHV4KI8AK/BQDgHW4KH4AqzCQwEfiIRheKKUAvjuuu7m2tpakPdMmcYYI1rre0EQ1LPo9w82qyNziMdZ3AAAAABJRU5ErkJggg=="> <img src="https://img.shields.io/badge/AWS-deploys-F29100.svg?logo=amazon">                                                                     |
+| Services     | Step Functions, SQS, DynamoDB, Fargate                                                  |
+| Integrations | CDK, AWS CLI                                                                            |
+| Categories   | Serverless; Event-Driven architecture                                                   |
+| Level        | Beginner                                                                                |
+| GitHub       | [Repository link](https://github.com/baermat/sqs-fargate-ddb-cdk-go)                    |
 
 
-## Testing
+## Introduction
 
-1. Open SQS console
-2. Find SQS queue with name `sqs-fargate-queue`
-3. Press `Send and Receive message` button
-4. Enter the message into "Message Body" field, e.g.
+The Messaging Processing application demonstrates how to deploy and configure a Fargate container to interact with other services, specifically SQS and DynamoDB. The sample application implements the following integration among the various AWS services:
+
+- User submits a message to the specified SQS queue.
+- The Fargate container fetches any messages sent to the queue.
+- The Fargate container then writes any fetched messages into DynamoDB.
+
+Users can deploy this application sample on AWS & LocalStack using Cloud Development Kit (CDK) with minimal changes. To test this application sample, we will demonstrate how you use LocalStack to deploy the infrastructure on your developer machine and your CI environment.
+
+## Architecture diagram
+
+The following diagram shows the architecture that this sample application builds and deploys:
+
+![LocalStack Fargate Messaging Processing application with AWS SQS, DynamoDB, and Fargate](./images/architecture-diagram.png)
+
+- [Fargate ECS](https://docs.localstack.cloud/tutorials/ecs-ecr-container-app/) to spawn a container to act as a custom broker and relay any incoming messages.
+- [SQS](https://docs.localstack.cloud/user-guide/aws/sqs/) to send messages to the application using long polling (20 seconds).
+- [DynamoDB](https://docs.localstack.cloud/user-guide/aws/dynamodb/) to persist the messages received after being processed by the Fargate service.
+
+## Prerequisites
+
+- LocalStack Pro with the [`localstack` CLI](https://docs.localstack.cloud/getting-started/installation/#localstack-cli).
+- [Cloud Development Kit](https://docs.localstack.cloud/user-guide/integrations/aws-cdk/) with the [`cdklocal`](https://www.npmjs.com/package/aws-cdk-local) installed.
+- [AWS CLI](https://docs.localstack.cloud/user-guide/integrations/aws-cli/) with the [`awslocal` wrapper](https://docs.localstack.cloud/user-guide/integrations/aws-cli/#localstack-aws-cli-awslocal).
+- [Node.js](https://nodejs.org/en/download)
+
+## Instructions
+
+You can build and deploy the sample application on LocalStack by running the `run.sh` script.
+Here are instructions to deploy and test it manually step-by-step.
+
+### Running the LocalStack container
+
+Before starting the LocalStack container, configure the following environment variables which act as configurations for the LocalStack container:
+
+```bash
+export LOCALSTACK_API_KEY=<your_api_key>
+export SQS_QUEUE="sqs-fargate-queue"
+export NETWORK_NAME="localstack-shared-net"
+```
+
+The `SQS_QUEUE` and `NETWORK_NAME` can be any name that confirms to the naming conventions of SQS and Docker networks respectively.
+
+To create a Docker network, run the following command:
+
+```bash
+docker network create $NETWORK_NAME
+```
+
+This network is required for the Fargate ECS container to be able to [use LocalStack services from the running Docker container](https://docs.localstack.cloud/references/network-troubleshooting/endpoint-url/#from-your-container).
+
+Run the following command to start the LocalStack container:
+
+```bash
+LAMBDA_DOCKER_NETWORK=$NETWORK_NAME DOCKER_FLAGS="--network $NETWORK_NAME" DEBUG=1 localstack start -d
+```
+
+This starts LocalStack in detached mode with the necessary configurations.
+> If you prefer to be able to follow the debug output while deploying this sample, omit the `-d` flag, then open a new terminal window and navigate to the same location as before.
+
+### Build the infrastructure
+
+After running the LocalStack container, you can build the Fargate Docker image:
+
+```bash
+docker build -t go-fargate .
+```
+
+As specified in the [`Dockerfile](./Dockerfile), this builds the Docker image with the name `go-fargate`. You can now install the necessary dependencies for CDK and deploy the infrastructure. Run the following command:
+
+```bash
+cd cdk
+npm i
+```
+
+This will navigate into the correct folder and install all necessary packages
+
+### Deploy the infrastructure
+
+To deploy the sample application, we will use CDK to bootstrap the environment and deploy the infrastructure. Run the following commands:
+
+```bash
+cdklocal bootstrap
+cdklocal deploy
+```
+
+> While deploying the infrastructure, CDK will ask your permission — If you would rather skip the approval process, you can add the `--require-approval never` flag to the deploy command. 
+
+### Testing the application
+
+To assert that the SQS queue and the DynamoDB have been created, run the following commands:
+
+```bash
+awslocal sqs list-queues
+awslocal dynamodb list-tables
+```
+
+You should see output similar to the following:
 ```
 {
-    "message": "Hello, Fargate"
+    "QueueUrls": [
+        "http://localhost:4566/000000000000/sqs-fargate-queue"
+    ]
+}
+{
+    "TableNames": [
+        "sqs-fargate-ddb-table"
+    ]
 }
 ```
 
-![image1](images/image1.png)
+Next, send a message to the SQS queue. Run the following command:
 
-5. Press `Send message`
-6. Open ECS console
-7. Find cluster with name `go-service-cluster`
-8. Find service named `go-fargate-service`
-9. Open CloudWatch logs for an active task of this service and you'll see the messages from the service in the log.
+```bash
+awslocal sqs send-message --queue $SQS_QUEUE --message-body '{"message": "hello world"}'
+```
 
-![image2](images/image2.png)
+This sends a `hello world` message to the SQS queue, which is then processed by the Fargate container. You can wait for a couple of seconds for the container to finish its task.
 
-10. Open DynamoDB console and find `sqs-fargate-ddb-table` table
-11. Press `Explore table items` button and you'll see messages that Fargate service put into the table.
+To check if the message has been written to the DynamoDB table, run the following command:
 
-![image3](images/image3.png)
+```bash
+awslocal dynamodb scan --table-name sqs-fargate-ddb-table
+```
 
-12. Check CloudWatch dashboard `go-service-dashboard` to monitor number of messages received from SQS and added into DynamoDB by the service.
+You should see an answer similar to the following when executing the given command:
 
-## Cleanup
+```bash
+{
+    "Items": [
+        {
+            "timestamp_utc": {
+                "S": "2023-05-24T10:56:22.456Z"
+            },
+            "message": {
+                "S": "hello world"
+            },
+            "id": {
+                "S": "f00e46d3-414f-4170-b964-9a3d397111e4"
+            }
+        }
+    ],
+    "Count": 1,
+    "ScannedCount": 1,
+    "ConsumedCapacity": null
+}
+```
 
-1. Delete the stack:
-    ```
-    cd cdk
-    cdk destroy --profile ${AWS_PROFILE}
-    ```
-2. Confirm the stack has been deleted:
-    ```
-    aws cloudformation list-stacks --query "StackSummaries[?contains(StackName,'SqsFargate')].StackStatus" --profile ${AWS_PROFILE}
-    ```
+To run this sample against AWS, check [the original repository](https://github.com/aws-samples/sqs-fargate-ddb-cdk-go).
 
+## Learn more
 
-## License
-
-This code is licensed under the MIT-0 License. See the LICENSE file.
+The sample application is based on a [public AWS sample app](https://github.com/aws-samples/sqs-fargate-ddb-cdk-go) that deploys a message processing service using Fargate. See this AWS patterns post for more details: [Run message-driven workloads at scale by using AWS Fargate](https://docs.aws.amazon.com/prescriptive-guidance/latest/patterns/run-message-driven-workloads-at-scale-by-using-aws-fargate.html).

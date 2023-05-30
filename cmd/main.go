@@ -34,25 +34,21 @@ func init() {
 
 	var err error
 
-	awsProfile := os.Getenv("AWS_PROFILE")
-	log.Printf("AWS_PROFILE: %s", awsProfile)
+	customResolver := aws.EndpointResolverWithOptionsFunc(func(service, region string, options ...interface{}) (aws.Endpoint, error) {
+		return aws.Endpoint{
+			PartitionID:   "aws",
+			URL:           "http://localstack_main:4566",
+			SigningRegion: region,
+		}, nil
+	})
 
-	if awsProfile != "" {
-		log.Printf("Use AWS profile %s", awsProfile)
-		cfg, err = config.LoadDefaultConfig(context.Background(),
-			config.WithSharedConfigProfile(awsProfile),
-		)
-		if err != nil {
-			log.Fatalf("error loading config %v", err)
-		}
-
-	} else {
-		log.Println("Use container role")
-		cfg, err = config.LoadDefaultConfig(context.Background())
-		if err != nil {
-			log.Fatalf("error loading config %v", err)
-		}
+	cfg, err = config.LoadDefaultConfig(context.Background(),
+		config.WithEndpointResolverWithOptions(customResolver),
+	)
+	if err != nil {
+		log.Fatalf("error loading config %v", err)
 	}
+
 }
 
 func main() {
@@ -74,6 +70,7 @@ func main() {
 	// Create DDB service client
 	ddbSvc := dynamodb.NewFromConfig(cfg)
 
+	log.Printf("Service clients created")
 	defer func() {
 		signal.Stop(signalChan)
 		cancel()
@@ -104,13 +101,13 @@ loop:
 }
 
 func processSQS(ctx context.Context, sqsSvc *sqs.Client, queueUrl string, ddbSvc *dynamodb.Client, tableName string) (bool, error) {
+	log.Printf("Process SQS...")
 	input := &sqs.ReceiveMessageInput{
 		QueueUrl:            &queueUrl,
 		MaxNumberOfMessages: 1,
 		VisibilityTimeout:   visibilityTimeout,
 		WaitTimeSeconds:     waitingTimeout, // use long polling
 	}
-
 	resp, err := sqsSvc.ReceiveMessage(ctx, input)
 
 	if err != nil {
