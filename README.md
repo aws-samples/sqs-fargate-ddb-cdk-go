@@ -7,7 +7,7 @@
 | Integrations | CDK, AWS CLI                                                                            |
 | Categories   | Serverless; Event-Driven architecture                                                   |
 | Level        | Beginner                                                                                |
-| GitHub       | [Repository link](https://github.com/baermat/sqs-fargate-ddb-cdk-go)                    |
+| GitHub       | [Repository link](https://github.com/localstack/sqs-fargate-ddb-cdk-go)                 |
 
 
 ## Introduction
