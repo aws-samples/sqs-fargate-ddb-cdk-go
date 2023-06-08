@@ -1,11 +1,11 @@
-.PHONY: init build build_docker deploy
+.PHONY: init build build_docker test deploy start-ls stop-ls
 
 .EXPORT_ALL_VARIABLES:
-AWS_PROFILE = default
 GOPROXY = direct
+NETWORK_NAME="localstack-shared-net"
 
 init:
-	cd cdk;
+	cd cdk;\
 	npm i
 
 build_docker:
@@ -13,8 +13,20 @@ build_docker:
 
 deploy: build_docker
 	cd cdk;\
-	cdk deploy --profile ${AWS_PROFILE}
+	cdklocal bootstrap;\
+	cdklocal deploy ---require-approval never
 
-destroy:
-	cd cdk;\
-	cdk destroy --profile ${AWS_PROFILE}
+start-ls:
+	-docker network create $(NETWORK_NAME) 2> /dev/null;
+	LAMBDA_DOCKER_NETWORK=$(NETWORK_NAME) DOCKER_FLAGS="--network $(NETWORK_NAME)" DEBUG=1 localstack start -d
+
+stop-ls:
+	localstack stop
+
+run: start-ls init deploy
+	./run.sh
+	make stop-ls
+
+test: start-ls init deploy
+	./run.sh;./test.sh;exit_code=`echo $$?`;\
+	make stop-ls; exit $$exit_code

@@ -39,7 +39,7 @@ The following diagram shows the architecture that this sample application builds
 
 ## Instructions
 
-You can build and deploy the sample application on LocalStack by running the `run.sh` script.
+You can build and deploy the sample application on LocalStack by running `make run`.
 Here are instructions to deploy and test it manually step-by-step.
 
 ### Running the LocalStack container
