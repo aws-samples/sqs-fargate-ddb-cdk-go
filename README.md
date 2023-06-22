@@ -164,3 +164,8 @@ To run this sample against AWS, check [the original repository](https://github.c
 ## Learn more
 
 The sample application is based on a [public AWS sample app](https://github.com/aws-samples/sqs-fargate-ddb-cdk-go) that deploys a message processing service using Fargate. See this AWS patterns post for more details: [Run message-driven workloads at scale by using AWS Fargate](https://docs.aws.amazon.com/prescriptive-guidance/latest/patterns/run-message-driven-workloads-at-scale-by-using-aws-fargate.html).
+
+## Contributing
+
+We appreciate your interest in contributing to our project and are always looking for new ways to improve the experience for developers. We welcome feedback, bug reports, and even feature ideas from the community.
+Please refer to the [contributing file](CONTRIBUTING.md) for more details on how to get started. 
