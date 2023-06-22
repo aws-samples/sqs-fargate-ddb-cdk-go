@@ -1,8 +1,12 @@
-.PHONY: init build build_docker test deploy start-ls stop-ls
+.PHONY: install init build build_docker test deploy start-ls stop-ls
 
 .EXPORT_ALL_VARIABLES:
 GOPROXY = direct
 NETWORK_NAME="localstack-shared-net"
+
+install: 
+	@which localstack || pip install localstack
+	@which awslocal || pip install awscli-local
 
 init:
 	cd cdk;\
@@ -27,6 +31,6 @@ run: start-ls init deploy
 	./run.sh
 	make stop-ls
 
-test: start-ls init deploy
+test: install start-ls init deploy
 	./run.sh;./test.sh;exit_code=`echo $$?`;\
 	make stop-ls; exit $$exit_code
