@@ -167,5 +167,5 @@ The sample application is based on a [public AWS sample app](https://github.com/
 
 ## Contributing
 
-We appreciate your interest in contributing to our project and are always looking for new ways to improve the experience for developers. We welcome feedback, bug reports, and even feature ideas from the community.
+We appreciate your interest in contributing to our project and are always looking for new ways to improve the developer experience. We welcome feedback, bug reports, and even feature ideas from the community.
 Please refer to the [contributing file](CONTRIBUTING.md) for more details on how to get started. 
