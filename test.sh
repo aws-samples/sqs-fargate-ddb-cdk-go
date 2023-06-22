@@ -3,6 +3,9 @@ set -e
 expected_queue_url="http://localhost:4566/000000000000/sqs-fargate-queue"
 expected_db="sqs-fargate-ddb-table"
 echo $PWD
+echo $(ls)
+echo $(ls ..)
+echo $(ls ../..)
 source assert.sh/assert.sh
 
 echo "Running tests for fargate-ddb-cdk-go sample..."
