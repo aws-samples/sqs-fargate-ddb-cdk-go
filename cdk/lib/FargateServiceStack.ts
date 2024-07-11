@@ -1,4 +1,4 @@
-import { App, Duration, Stack, StackProps, RemovalPolicy } from 'aws-cdk-lib';
+import { App, Duration, Stack, StackProps, RemovalPolicy, Tags } from 'aws-cdk-lib';
 import * as path from 'path';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import * as ecs from 'aws-cdk-lib/aws-ecs';
@@ -14,6 +14,7 @@ import { default as config } from '../config/config';
 
 export class FargateServiceStack extends Stack {
   private uniqueSuffix: string;
+  private currentUser: string;
 
   constructor(scope: App, id: string, props?: StackProps) {
 
@@ -24,6 +25,7 @@ export class FargateServiceStack extends Stack {
     super(scope, `${id}-${uniqueSuffix}`, props);
 
     this.uniqueSuffix = uniqueSuffix;
+    this.currentUser = FargateServiceStack.getUserEmail();
 
     // Update resource names with the unique suffix
     const tableName = `${config.tableName}-${this.uniqueSuffix}`;
@@ -126,6 +128,9 @@ export class FargateServiceStack extends Stack {
       title: config.dashboard.sqsWidgetTitle,
       width: 24
     }));
+
+    // Add tags to all resources in the stack
+    this.addTags();
   }
 
   private static getCurrentUser(): string {
@@ -167,4 +172,54 @@ export class FargateServiceStack extends Stack {
       return `U${Date.now().toString(36).slice(0, 6)}`;
     }
   }
+
+  private static getUserEmail(): string {
+    try {
+      // Use AWS CLI to get caller identity synchronously
+      const result = execSync('aws sts get-caller-identity --query Arn --output text', { encoding: 'utf8' }).toString().trim();
+
+      let email = '';
+      if (result.includes(':user/')) {
+        email = result.split(':user/').pop() || '';
+      } else if (result.includes(':assumed-role/')) {
+        const parts = result.split(':assumed-role/').pop()?.split('/') || [];
+        email = parts[parts.length - 1] || '';
+      } else {
+        email = result.split('/').pop() || '';
+      }
+
+      // If the email doesn't contain '@', it's probably not a valid email address
+      if (!email.includes('@')) {
+        // Try to get the user's email from their IAM user profile
+        const userInfo = execSync('aws iam get-user --query User.UserName --output text', { encoding: 'utf8' }).toString().trim();
+        const userEmail = execSync(`aws iam list-user-tags --user-name ${userInfo} --query "Tags[?Key=='email'].Value" --output text`, { encoding: 'utf8' }).toString().trim();
+        
+        if (userEmail) {
+          email = userEmail;
+        }
+      }
+
+      // If we still don't have a valid email, return a placeholder
+      if (!email.includes('@')) {
+        return 'unknown@example.com';
+      }
+
+      return email;
+    } catch (error) {
+      console.error('Error getting user email:', error);
+      // Fallback to a placeholder email if we can't get the user's email
+      return 'unknown@example.com';
+    }
+  }
+
+
+  private addTags(): void {
+    Tags.of(this).add("product", "digital_wallet");
+    Tags.of(this).add("owner", this.currentUser);
+    Tags.of(this).add("project", "nats-fargate-ddb-cdk-go");
+    Tags.of(this).add("environment", "poc");
+    Tags.of(this).add("developer_id", this.uniqueSuffix);
+  }
+
+
 }
