@@ -1,7 +1,7 @@
 import configFile from "./project-config.json"
 
 export interface ProjectConfig {
-
+  vpcName: string
   tableName: string,
   queueName: string,
   clusterName: string,
