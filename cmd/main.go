@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -15,6 +14,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
+	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 )
 
@@ -55,51 +55,68 @@ func init() {
 	}
 }
 
+func getSecret(secretName string) (*secretsmanager.GetSecretValueOutput, error) {
+
+	// Create a Secrets Manager client
+	svc := secretsmanager.NewFromConfig(cfg)
+
+	// Retrieve the secret value
+	result, err := svc.GetSecretValue(context.TODO(), &secretsmanager.GetSecretValueInput{
+		SecretId: aws.String(secretName),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve secret %q: %v", secretName, err)
+	}
+
+	return result, nil
+}
+
 func main() {
 	log.Println("Service is started")
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, _ := signal.NotifyContext(context.Background(), os.Interrupt)
 
 	signalChan := make(chan os.Signal, 1)
 	signal.Notify(signalChan, os.Interrupt, syscall.SIGTERM)
 
-	queueUrl := os.Getenv("SQS_URL")
-	log.Printf("QUEUE_URL: %s", queueUrl)
+	natsSecret := os.Getenv("SECRET_NATS")
+	log.Printf("SECRET_NATS: %s", natsSecret)
+	secretValue, err := getSecret(natsSecret)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+	log.Printf("secretValue: %v", secretValue)
 
 	tableName := os.Getenv("DDB_TABLE")
 	log.Printf("DDB_TABLE: %s", tableName)
 
-	// Create S3 service client
-	sqsSvc := sqs.NewFromConfig(cfg)
-
 	// Create DDB service client
 	ddbSvc := dynamodb.NewFromConfig(cfg)
+	log.Println("ddbSvc: %+v", ddbSvc)
 
-	defer func() {
-		signal.Stop(signalChan)
-		cancel()
-	}()
+	// loop:
+	// 	for {
+	// 		select {
+	// 		case <-signalChan: //if get SIGTERM
+	// 			log.Println("Got SIGTERM signal, cancelling the context")
+	// 			cancel() //cancel context
 
-loop:
-	for {
-		select {
-		case <-signalChan: //if get SIGTERM
-			log.Println("Got SIGTERM signal, cancelling the context")
-			cancel() //cancel context
+	// 		default:
+	// 			_, err := processSQS(ctx, sqsSvc, natsSecret, ddbSvc, tableName)
 
-		default:
-			_, err := processSQS(ctx, sqsSvc, queueUrl, ddbSvc, tableName)
+	// 			if err != nil {
+	// 				if errors.Is(err, context.Canceled) {
+	// 					log.Printf("stop processing, context is cancelled %v", err)
+	// 					break loop
+	// 				}
 
-			if err != nil {
-				if errors.Is(err, context.Canceled) {
-					log.Printf("stop processing, context is cancelled %v", err)
-					break loop
-				}
-
-				log.Fatalf("error processing SQS %v", err)
-			}
-		}
-	}
-	log.Println("service is safely stopped")
+	//				log.Fatalf("error processing SQS %v", err)
+	//			}
+	//		}
+	//	}
+	//
+	// log.Println("service is safely stopped")
+	<-ctx.Done()
 
 }
 

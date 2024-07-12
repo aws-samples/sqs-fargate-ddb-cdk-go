@@ -1,9 +1,9 @@
-FROM golang:1.15 AS build-image
+FROM golang:1.22 AS build-image
 
 WORKDIR /app
 
 COPY go.mod go.sum ./
-RUN GOPROXY=direct go mod download
+RUN go mod download
 
 COPY /cmd/*.go ./
 

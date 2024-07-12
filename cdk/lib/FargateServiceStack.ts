@@ -1,8 +1,10 @@
-import { App, Duration, Stack, StackProps, RemovalPolicy } from 'aws-cdk-lib';
+import { App, Duration, Stack, StackProps, RemovalPolicy, SecretValue } from 'aws-cdk-lib';
 import * as path from 'path';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import * as ecs from 'aws-cdk-lib/aws-ecs';
-import * as sqs from 'aws-cdk-lib/aws-sqs';
+import * as sm from "aws-cdk-lib/aws-secretsmanager";
+import * as fs from 'fs';
+// import * as sqs from 'aws-cdk-lib/aws-sqs';
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as cw from 'aws-cdk-lib/aws-cloudwatch';
 import { LogGroup } from 'aws-cdk-lib/aws-logs';
@@ -16,6 +18,10 @@ export class FargateServiceStack extends Stack {
   constructor(scope: App, id: string, props?: StackProps) {
     super(scope, id, props);
 
+    // Read the content of the NGS-poc-service.creds file
+    const credsFilePath = path.join(__dirname, '../config/NGS-poc-service.creds');
+    const secretContent = fs.readFileSync(credsFilePath, 'utf8');
+
     const ddbTable = new dynamodb.Table(this, "Table", {
       tableName: config.tableName,
       partitionKey: { name: 'id', type: dynamodb.AttributeType.STRING },
@@ -24,11 +30,21 @@ export class FargateServiceStack extends Stack {
     });
 
 
-    const queue = new sqs.Queue(this, "SqsQueue", {
-      queueName: config.queueName,
-      encryption: sqs.QueueEncryption.KMS_MANAGED,
-      visibilityTimeout: Duration.minutes(15),
-    })
+    // Create a new secret in AWS Secrets Manager with the content of NGS-poc-service.creds
+    const serviceCredentialsSecretId = 'serviceCreds';
+    const secret = new sm.Secret(this, serviceCredentialsSecretId, {
+      secretName: 'serviceCreds',
+      description: 'NATs service credentials',
+      secretStringValue: SecretValue.unsafePlainText(secretContent),
+      removalPolicy: RemovalPolicy.DESTROY //change it if you want to keep the secret
+    });
+
+
+    // const queue = new sqs.Queue(this, "SqsQueue", {
+    //   queueName: config.queueName,
+    //   encryption: sqs.QueueEncryption.KMS_MANAGED,
+    //   visibilityTimeout: Duration.minutes(15),
+    // })
 
     const asset = new DockerImageAsset(this, "GoDockerImage", {
       directory: path.join(__dirname, "..", ".."),
@@ -57,7 +73,7 @@ export class FargateServiceStack extends Stack {
       image: ContainerImage.fromDockerImageAsset(asset),
       taskDefinition: taskDef,
       environment: {
-        SQS_URL: queue.queueUrl,
+        SECRET_NATS: serviceCredentialsSecretId,
         DDB_TABLE: ddbTable.tableName
       },
       logging: new ecs.AwsLogDriver({
@@ -75,9 +91,11 @@ export class FargateServiceStack extends Stack {
       desiredCount: 1
     })
 
-    //grant service role permission to read from SQS
-    queue.grantConsumeMessages(taskDef.taskRole)
+    // //grant service role permission to read from SQS
+    // queue.grantConsumeMessages(taskDef.taskRole)
 
+    // grant service role permission to read from secret and write to DynamoDB
+    secret.grantRead(taskDef.taskRole)
     ddbTable.grantWriteData(taskDef.taskRole)
 
     //Add CloudWatch dashboard

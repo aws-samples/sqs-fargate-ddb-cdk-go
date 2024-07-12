@@ -1,8 +1,8 @@
 .PHONY: init build build_docker deploy
 
 .EXPORT_ALL_VARIABLES:
-AWS_PROFILE = default
-GOPROXY = direct
+AWS_PROFILE = training
+
 
 init:
 	cd cdk;

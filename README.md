@@ -4,9 +4,48 @@ This pattern demonstrates how to build and deploy Fargate service using Go which
 
 Important: this application uses various AWS services and there are costs associated with these services after the Free Tier usage - please see the [AWS Pricing page](https://aws.amazon.com/pricing/) for details. You are responsible for any AWS costs incurred. No warranty is implied in this example.
 
+## Architecture
+
+Here's a high-level overview of our serverless architecture:
+
+```mermaid
+graph TD
+    U((User/Client))
+    T[NATS]
+    B[Get Balance Microservice]
+    C[(DynamoDB)]
+
+    U -->|NATS Request| T
+    T -->|Authenticated Request| B
+    B -->|Read/Write| C
+
+    style U fill:#f9f,stroke:#333,stroke-width:4px
+    style T fill:#ff9,stroke:#333,stroke-width:2px
+    style B fill:#9fc,stroke:#333,stroke-width:2px
+    style C fill:#f9c,stroke:#333,stroke-width:2px
+    style D fill:#c9f,stroke:#333,stroke-width:2px
+```
+
+### Component Breakdown
+
+| Component | Purpose |
+|-----------|---------|
+| NATs | Handles NATS requests and routes them to the appropriate Microservice |
+| Get Balance Microservice | Execute the business logic for balance retrieval and database seeding. Packages as a container, executes in Fargate (Serverless compute engine) |
+| DynamoDB | Stores client balances in a scalable, low-latency NoSQL database |
+
+This architecture allows for high scalability, low operational overhead, and pay-per-use pricing.
+
+## Features
+
+- ✨ Microservice architecture using AWS services, and NATS [services framework](https://docs.nats.io/using-nats/developer/services#service-operations)
+- 💰 Balance retrieval for digital wallet accounts
+- 🔒 JWT authentication for secure access
+- 🚀 High-performance database seeding (1m records)
+
 ## Requirements
 
-* [Create an AWS account](https://portal.aws.amazon.com/gp/aws/developer/registration/index.html) if you do not already have one and log in. The IAM user that you use must have sufficient permissions to make necessary AWS service calls and manage AWS resources.
+* [Use training AWS account]`aws sso login --profile training` Connects as `loyaltynz-techops-aws-training`
 * [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/install-cliv2.html) installed and configured with named AWS profile
 * [Git](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git) installed
 * [AWS CDK](https://docs.aws.amazon.com/cdk/v2/guide/getting_started.html) installed
@@ -29,7 +68,8 @@ Important: this application uses various AWS services and there are costs associ
     docker build -t go-fargate .
     cd cdk
     npm i
-    cdk deploy --profile ${AWS_PROFILE}
+    export AWS_PROFILE=training
+    cdk deploy
     ```
 
 ## How it works
@@ -72,8 +112,9 @@ Once you send SQS message to the queue, Fargate service receives this message, p
 
 1. Delete the stack:
     ```
+    export AWS_PROFILE=training
     cd cdk
-    cdk destroy --profile ${AWS_PROFILE}
+    cdk destroy 
     ```
 2. Confirm the stack has been deleted:
     ```
