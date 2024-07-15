@@ -17,8 +17,8 @@ var seedKey = "seed"
 var kvBucket = "config"
 
 type Client struct {
-	ID            string `json:"id"`
-	ClientBalance int    `json:"client_balance"`
+	ID            string `dynamodbav:"id"`
+	ClientBalance int    `dynamodbav:"client_balance"`
 }
 
 func SeedDb(ctx context.Context, js jetstream.JetStream, ddb *dynamodb.Client, table string) error {
