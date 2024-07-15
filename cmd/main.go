@@ -16,6 +16,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
+	"github.com/nats-io/nats.go"
 )
 
 var cfg aws.Config
@@ -78,14 +79,14 @@ func main() {
 	signalChan := make(chan os.Signal, 1)
 	signal.Notify(signalChan, os.Interrupt, syscall.SIGTERM)
 
-	natsSecret := os.Getenv("SECRET_NATS")
-	log.Printf("SECRET_NATS: %s", natsSecret)
-	secretValue, err := getSecret(natsSecret)
+	secretKey := os.Getenv("NATS_CREDENTIALS")
+	log.Printf("NATS_CREDENTIALS key: %s", secretKey)
+	secretValue, err := getSecret(secretKey)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		os.Exit(1)
+
 	}
-	log.Printf("secretValue: %v", secretValue)
+	log.Printf("NATS_CREDENTIALS value: %v", secretValue)
 
 	tableName := os.Getenv("DDB_TABLE")
 	log.Printf("DDB_TABLE: %s", tableName)
@@ -93,6 +94,16 @@ func main() {
 	// Create DDB service client
 	ddbSvc := dynamodb.NewFromConfig(cfg)
 	log.Println("ddbSvc: %+v", ddbSvc)
+
+	nc, err := NatsConnect(ctx)
+	if err != nil {
+		log.Fatalf("error connecting to NATS %v", err)
+	}
+	m := nats.Msg{
+		Subject: "test",
+		Data:    []byte("hello from fargate"),
+	}
+	nc.PublishMsg(&m)
 
 	// loop:
 	// 	for {
@@ -118,6 +129,32 @@ func main() {
 	// log.Println("service is safely stopped")
 	<-ctx.Done()
 
+}
+
+func NatsConnect(ctx context.Context) (*nats.Conn, error) {
+	url := "tls://connect.ngs.global"
+	creds := `-----BEGIN NATS USER JWT-----
+eyJ0eXAiOiJKV1QiLCJhbGciOiJlZDI1NTE5LW5rZXkifQ.eyJqdGkiOiJJNEJWTVVGT1hPMjVEN0szWEcyWVpNNlFSSUxTSFdHTklOMklMWlozWEtSWEZPVjRBUUFBIiwiaWF0IjoxNzIwNzMzMTc0LCJpc3MiOiJBRFc2UU9ZU0ozREFRNUJLTUU3NlVEV0RUNVZFMk1EVk5VQlBYRVpKN1VSR0hTSkY3WFgzSVlMRiIsIm5hbWUiOiJzZXJ2aWNlIiwic3ViIjoiVUNLMlRZSENLS0xDRk1TNktIT1dJTUZZV1dYRkUyMjZYQUJDVVJIU0lSN0dINFlBSjVUSUtVQkYiLCJuYXRzIjp7InB1YiI6e30sInN1YiI6e30sInN1YnMiOi0xLCJkYXRhIjotMSwicGF5bG9hZCI6LTEsImlzc3Vlcl9hY2NvdW50IjoiQUNUM0ZPWFVCNjMzQkpRRlBQRkk1U1laUzVKM09aMlRDWjVMQVlETFlMWEdIUFgyTkJFQlRQREEiLCJ0eXBlIjoidXNlciIsInZlcnNpb24iOjJ9fQ.nDbN0Q2spRDnjitnr--3wewXFRsS2sbjNOfDh5HH77WpcyyJiruKCkV3jYwN4HgNHAM_3llsSIG18aIL6IDLBQ
+------END NATS USER JWT------
+
+************************* IMPORTANT *************************
+NKEY Seed printed below can be used to sign and prove identity.
+NKEYs are sensitive and should be treated as secrets.
+
+-----BEGIN USER NKEY SEED-----
+SUAAJUF34ILUVMRMXVPBDJYVYKOD7O4LXQYOKM45KPHWVRV4LDFGWPWMAI
+------END USER NKEY SEED------
+
+*************************************************************`
+
+	// Write the credentials to a file
+	credsFile := "/tmp/nats.creds"
+	err := os.WriteFile(credsFile, []byte(creds), 0600)
+	if err != nil {
+		return nil, err
+	}
+
+	return nats.Connect(url, nats.UserCredentials(credsFile))
 }
 
 func processSQS(ctx context.Context, sqsSvc *sqs.Client, queueUrl string, ddbSvc *dynamodb.Client, tableName string) (bool, error) {
