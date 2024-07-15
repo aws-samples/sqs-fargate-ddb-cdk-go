@@ -72,3 +72,43 @@ func SeedDb(ctx context.Context, js jetstream.JetStream, ddb *dynamodb.Client, t
 	log.Printf("successfully seeded database with %d rows", rows)
 	return nil
 }
+
+type BalRequest struct {
+	ID string `dynamodbav:"id"`
+}
+
+type BalResponse struct {
+	ClientBalance int `dynamodbav:"client_balance"`
+}
+
+func GetBalance(ctx context.Context, ddb *dynamodb.Client, table string, clientID string) (int, error) {
+
+	log.Println("get bal for client: ", clientID)
+	req := BalRequest{ID: clientID}
+	av, err := attributevalue.MarshalMap(req)
+	if err != nil {
+		return 0, err
+	}
+
+	// Get the item from the table
+	result, err := ddb.GetItem(ctx, &dynamodb.GetItemInput{
+		TableName:       aws.String(table),
+		Key:             av,
+		AttributesToGet: []string{"client_balance"},
+	})
+	if err != nil {
+		return 0, err
+	}
+	log.Println("response: %+v", result)
+	if result.Item == nil {
+		log.Println("could not find item")
+		return 0, nil
+	}
+	bal := BalResponse{}
+	err = attributevalue.UnmarshalMap(result.Item, &bal)
+	if err != nil {
+		return 0, err
+	}
+
+	return bal.ClientBalance, nil
+}

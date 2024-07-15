@@ -3,10 +3,8 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"log"
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
-	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/micro"
 )
@@ -45,7 +43,7 @@ type BalanceRequest struct {
 }
 
 type BalanceResponse struct {
-	Balance string `json:"balance"`
+	Balance int `json:"balance"`
 }
 
 func (hc *Handler) GetBalance(req micro.Request) {
@@ -58,39 +56,14 @@ func (hc *Handler) GetBalance(req micro.Request) {
 		req.Error("403", "BAD_REQUEST", []byte(err.Error()))
 		return
 	}
-	log.Printf("GetBalance: %+v", balanceReq)
-	log.Printf("Table: %s", hc.table)
 
-	// Make the call to db Key={'client_id': client_id}
-	qry := dynamodb.GetItemInput{
-		TableName: &hc.table,
-		Key: map[string]types.AttributeValue{
-			"id": &types.AttributeValueMemberN{
-				Value: balanceReq.CustomerID,
-			},
-		},
-	}
-	item, err := hc.ddb.GetItem(ctx, &qry)
+	br, err := GetBalance(ctx, hc.ddb, hc.table, balanceReq.CustomerID)
 	if err != nil {
-		req.Error("500", "INTERNAL_ERROR - getItem", []byte(err.Error()))
+		req.Error("500", "INTERNAL_ERROR  - retrieve bal", []byte("client_balance  error"))
 		return
 	}
 
-	// Assuming item is the result from the DynamoDB GetItem operation
-	it := item.Item["client_balance"]
-	if it == nil {
-		req.Error("404", "NOT_FOUND", []byte("customer not found"))
-		return
-	}
-
-	// Convert the DynamoDB Number (string) to Go int
-	balanceStr, ok := it.(*types.AttributeValueMemberN)
-	if !ok {
-		req.Error("500", "INTERNAL_ERROR  - retrieve bal", []byte("client_balance conversion error"))
-		return
-	}
-
-	bal := BalanceResponse{Balance: balanceStr.Value}
+	bal := BalanceResponse{Balance: br}
 
 	// Encode the response
 	resp, err := json.Marshal(bal)

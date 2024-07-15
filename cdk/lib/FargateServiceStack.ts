@@ -112,8 +112,8 @@ export class FargateServiceStack extends Stack {
     // grant service role permission to read from secret and write to DynamoDB
     // container.addSecret("NATS_CREDENTIALS", secret)
     secret.grantRead(taskDef.taskRole)
-    ddbTable.grantWriteData(taskDef.taskRole)
-
+    ddbTable.grantReadWriteData(taskDef.taskRole)
+   
     const dashboardStart = "-P1D";
     const dashboard = new cw.Dashboard(this, "ServiceDashboard", {
       dashboardName: dashboardName,
