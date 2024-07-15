@@ -13,8 +13,8 @@ build_docker:
 
 deploy: build_docker
 	cd cdk;\
-	cdk deploy --profile ${AWS_PROFILE}
+	cdk deploy --profile ${AWS_PROFILE} --stack-timeout-in-minutes 5
 
 destroy:
 	cd cdk;\
-	cdk destroy --profile ${AWS_PROFILE}
+	cdk destroy --profile ${AWS_PROFILE} 

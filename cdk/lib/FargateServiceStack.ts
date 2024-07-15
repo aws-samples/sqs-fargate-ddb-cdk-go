@@ -146,6 +146,7 @@ export class FargateServiceStack extends Stack {
 
     // Add tags to all resources in the stack
     this.addTags();
+    
   }
 
   private static getCurrentUser(): string {
