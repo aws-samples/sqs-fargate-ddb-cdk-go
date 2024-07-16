@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"log"
 	"os"
@@ -76,15 +77,6 @@ func main() {
 	signalChan := make(chan os.Signal, 1)
 	signal.Notify(signalChan, os.Interrupt, syscall.SIGTERM)
 
-	secretKey := os.Getenv("NATS_CREDENTIALS")
-	log.Printf("NATS_CREDENTIALS key: %s", secretKey)
-	secretValue, err := getSecret(secretKey)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-
-	}
-	log.Printf("NATS_CREDENTIALS value: %v", secretValue)
-
 	tableName := os.Getenv("DDB_TABLE")
 	log.Printf("DDB_TABLE: %s", tableName)
 
@@ -116,27 +108,39 @@ func main() {
 }
 
 func NatsConnect(ctx context.Context) (*nats.Conn, error) {
-	url := "tls://connect.ngs.global"
-	creds := `-----BEGIN NATS USER JWT-----
-eyJ0eXAiOiJKV1QiLCJhbGciOiJlZDI1NTE5LW5rZXkifQ.eyJqdGkiOiJJNEJWTVVGT1hPMjVEN0szWEcyWVpNNlFSSUxTSFdHTklOMklMWlozWEtSWEZPVjRBUUFBIiwiaWF0IjoxNzIwNzMzMTc0LCJpc3MiOiJBRFc2UU9ZU0ozREFRNUJLTUU3NlVEV0RUNVZFMk1EVk5VQlBYRVpKN1VSR0hTSkY3WFgzSVlMRiIsIm5hbWUiOiJzZXJ2aWNlIiwic3ViIjoiVUNLMlRZSENLS0xDRk1TNktIT1dJTUZZV1dYRkUyMjZYQUJDVVJIU0lSN0dINFlBSjVUSUtVQkYiLCJuYXRzIjp7InB1YiI6e30sInN1YiI6e30sInN1YnMiOi0xLCJkYXRhIjotMSwicGF5bG9hZCI6LTEsImlzc3Vlcl9hY2NvdW50IjoiQUNUM0ZPWFVCNjMzQkpRRlBQRkk1U1laUzVKM09aMlRDWjVMQVlETFlMWEdIUFgyTkJFQlRQREEiLCJ0eXBlIjoidXNlciIsInZlcnNpb24iOjJ9fQ.nDbN0Q2spRDnjitnr--3wewXFRsS2sbjNOfDh5HH77WpcyyJiruKCkV3jYwN4HgNHAM_3llsSIG18aIL6IDLBQ
-------END NATS USER JWT------
-
-************************* IMPORTANT *************************
-NKEY Seed printed below can be used to sign and prove identity.
-NKEYs are sensitive and should be treated as secrets.
-
------BEGIN USER NKEY SEED-----
-SUAAJUF34ILUVMRMXVPBDJYVYKOD7O4LXQYOKM45KPHWVRV4LDFGWPWMAI
-------END USER NKEY SEED------
-
-*************************************************************`
-
-	// Write the credentials to a file
-	credsFile := "/tmp/nats.creds"
-	err := os.WriteFile(credsFile, []byte(creds), 0600)
+	err := captureCredsToFile()
 	if err != nil {
 		return nil, err
 	}
-
+	url := "tls://connect.ngs.global"
+	credsFile := "/tmp/nats.creds"
 	return nats.Connect(url, nats.UserCredentials(credsFile))
+}
+
+func captureCredsToFile() error {
+	base64encodedCreds := os.Getenv("NATS_CREDENTIALS")
+	// Decode the base64 string
+	decodedBytes, err := base64.StdEncoding.DecodeString(base64encodedCreds)
+	if err != nil {
+		log.Println("Error decoding base64 string:", err)
+		return err
+	}
+	// Write the decoded bytes to a file
+	// Create a new file
+	file, err := os.Create("/tmp/nats.creds")
+	if err != nil {
+		log.Println("Error creating file:", err)
+		return err
+	}
+	defer file.Close()
+
+	// Write the decoded bytes to the file
+	_, err = file.Write(decodedBytes)
+	if err != nil {
+		log.Println("Error writing to file:", err)
+		return err
+	}
+
+	log.Println("Decoded bytes written to file successfully")
+	return nil
 }

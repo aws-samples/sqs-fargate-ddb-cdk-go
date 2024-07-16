@@ -36,7 +36,7 @@ export class FargateServiceStack extends Stack {
     const serviceName = `${config.service.name}-${this.uniqueSuffix}`;
     const dashboardName = `${config.dashboard.name}-${this.uniqueSuffix}`;
     const vpcName = `FargateVPC-${this.uniqueSuffix}`;
-    const secretName = `${this.uniqueSuffix}/NATSCredentials`;
+    const secretName = `${this.uniqueSuffix}/NATSCreds`;
 
     const ddbTable = new dynamodb.Table(this, "Table", {
       tableName: tableName,
@@ -48,11 +48,13 @@ export class FargateServiceStack extends Stack {
     // Read the content of the NGS-poc-service.creds file
     const credsFilePath = path.join(__dirname, '../config/NGS-poc-service.creds');
     const secretContent = fs.readFileSync(credsFilePath, 'utf8');
+    // Base64 encode the secret content
+    const secretContentBase64 = Buffer.from(secretContent).toString('base64');
 
 
     // Create a new secret in AWS Secrets Manager with the content of NGS-poc-service.creds
     const secret = new sm.Secret(this, secretName, {
-      secretName: 'NATSCredentials',
+      secretName: secretName,
       description: 'NATs service credentials',
       secretStringValue: SecretValue.unsafePlainText(secretContent),
       removalPolicy: RemovalPolicy.DESTROY //change it if you want to keep the secret
@@ -89,7 +91,7 @@ export class FargateServiceStack extends Stack {
       image: ContainerImage.fromDockerImageAsset(asset),
       taskDefinition: taskDef,
       environment: {
-        NATS_CREDENTIALS: secretName,
+        NATS_CREDENTIALS: secretContentBase64,
         DDB_TABLE: ddbTable.tableName
       },
       logging: new ecs.AwsLogDriver({
