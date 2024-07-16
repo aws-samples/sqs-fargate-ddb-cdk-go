@@ -60,7 +60,6 @@ export class FargateServiceStack extends Stack {
       removalPolicy: RemovalPolicy.DESTROY //change it if you want to keep the secret
     });
 
-
     const asset = new DockerImageAsset(this, "GoDockerImage", {
       directory: path.join(__dirname, "..", ".."),
     });
@@ -108,11 +107,7 @@ export class FargateServiceStack extends Stack {
       desiredCount: 1
     });
 
-    // //grant service role permission to read from SQS
-    // queue.grantConsumeMessages(taskDef.taskRole)
-
-    // grant service role permission to read from secret and write to DynamoDB
-    // container.addSecret("NATS_CREDENTIALS", secret)
+    // grant service role permission to read/write to DynamoDB
     secret.grantRead(taskDef.taskRole)
     ddbTable.grantReadWriteData(taskDef.taskRole)
    
