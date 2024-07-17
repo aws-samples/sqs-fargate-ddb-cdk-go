@@ -19,11 +19,6 @@ import (
 
 var cfg aws.Config
 
-const (
-	visibilityTimeout = 60 * 10
-	waitingTimeout    = 20
-)
-
 type MsgType struct {
 	Message string `json:"message"`
 }
@@ -71,7 +66,7 @@ func getSecret(secretName string) (*secretsmanager.GetSecretValueOutput, error) 
 }
 
 func main() {
-	log.Println("Service is started")
+	log.Println("service bootstrapping ...")
 	ctx, _ := signal.NotifyContext(context.Background(), os.Interrupt)
 
 	signalChan := make(chan os.Signal, 1)
@@ -80,31 +75,32 @@ func main() {
 	tableName := os.Getenv("DDB_TABLE")
 	log.Printf("DDB_TABLE: %s", tableName)
 
-	// Create DDB service client
+	log.Println("connecting to dynamo db ...")
 	ddbSvc := dynamodb.NewFromConfig(cfg)
-	log.Println("ddbSvc: %+v", ddbSvc)
 
+	log.Println("connecting to NATS ...")
 	nc, err := NatsConnect(ctx)
 	if err != nil {
 		log.Fatalf("error connecting to NATS %v", err)
 	}
 
-	// Create a JetStream context, which is needed for KV functionality
+	log.Println("connecting to NATS/Jetstream...")
 	js, err := jetstream.New(nc)
 	if err != nil {
 		log.Fatalf("error connecting to Jetstream %v", err)
 	}
 
-	if err = SeedDb(ctx, js, ddbSvc, tableName); err != nil {
+	if err = seedDb(ctx, js, ddbSvc, tableName); err != nil {
 		log.Fatalf("error seeding database %v", err)
 	}
 
-	if err = startService(ctx, nc, ddbSvc, tableName); err != nil {
+	if err = startService(nc, ddbSvc, tableName); err != nil {
 		log.Fatalf("error starting service %v", err)
 	}
 
+	log.Println("service ready")
 	<-ctx.Done()
-	log.Println("Service is stopped")
+	log.Println("service stopped")
 }
 
 func NatsConnect(ctx context.Context) (*nats.Conn, error) {

@@ -9,12 +9,12 @@ import (
 	"github.com/nats-io/nats.go/micro"
 )
 
-type Handler struct {
+type ServiceContext struct {
 	ddb   *dynamodb.Client
 	table string
 }
 
-func startService(ctx context.Context, nc *nats.Conn, ddb *dynamodb.Client, table string) error {
+func startService(nc *nats.Conn, ddb *dynamodb.Client, table string) error {
 	svc, err := micro.AddService(nc, micro.Config{
 		Name:        "customer",
 		Version:     "0.0.1",
@@ -24,15 +24,13 @@ func startService(ctx context.Context, nc *nats.Conn, ddb *dynamodb.Client, tabl
 		return err
 	}
 
-	handlerCtx := &Handler{ddb: ddb, table: table}
+	handlerCtx := &ServiceContext{ddb: ddb, table: table}
 
 	root := svc.AddGroup("customer")
 	root.AddEndpoint("balance", micro.HandlerFunc(handlerCtx.GetBalance),
 		micro.WithEndpointMetadata(map[string]string{
 			"description": "Create or update a customer",
 			"format":      "application/json",
-			// "request_schema":  SchemaFor(UpsertRequest{}),
-			// "response_schema": SchemaFor(UpsertResponse{}),
 		}))
 
 	return nil
@@ -46,7 +44,7 @@ type BalanceResponse struct {
 	Balance int `json:"balance"`
 }
 
-func (hc *Handler) GetBalance(req micro.Request) {
+func (sc *ServiceContext) GetBalance(req micro.Request) {
 	ctx := context.TODO()
 
 	// Decode the request
@@ -57,7 +55,7 @@ func (hc *Handler) GetBalance(req micro.Request) {
 		return
 	}
 
-	br, err := GetBalance(ctx, hc.ddb, hc.table, balanceReq.CustomerID)
+	br, err := getBalance(ctx, sc.ddb, sc.table, balanceReq.CustomerID)
 	if err != nil {
 		req.Error("500", "INTERNAL_ERROR  - retrieve bal", []byte("client_balance  error"))
 		return

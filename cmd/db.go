@@ -21,7 +21,11 @@ type Client struct {
 	ClientBalance int    `dynamodbav:"client_balance"`
 }
 
-func SeedDb(ctx context.Context, js jetstream.JetStream, ddb *dynamodb.Client, table string) error {
+// seedDb seeds the database with mock data
+// Before it seeds the database, it checks if the database has already been seeded, by looking for
+// the 'seed' value in the 'confiog' kv bucket. If the key is found, it means the database has already been seeded,
+// and it returns.
+func seedDb(ctx context.Context, js jetstream.JetStream, ddb *dynamodb.Client, table string) error {
 
 	log.Printf("seed db, getting bucket %s ...", kvBucket)
 	bucket, err := js.KeyValue(ctx, kvBucket)
@@ -81,9 +85,9 @@ type BalResponse struct {
 	ClientBalance int `dynamodbav:"client_balance"`
 }
 
-func GetBalance(ctx context.Context, ddb *dynamodb.Client, table string, clientID string) (int, error) {
+// getBalance gets the balance for a client by querying the database
+func getBalance(ctx context.Context, ddb *dynamodb.Client, table string, clientID string) (int, error) {
 
-	log.Println("get bal for client: ", clientID)
 	req := BalRequest{ID: clientID}
 	av, err := attributevalue.MarshalMap(req)
 	if err != nil {
@@ -99,9 +103,8 @@ func GetBalance(ctx context.Context, ddb *dynamodb.Client, table string, clientI
 	if err != nil {
 		return 0, err
 	}
-	log.Println("response: %+v", result)
 	if result.Item == nil {
-		log.Println("could not find item")
+		log.Printf("get bal for client: %s , client not found, returning 0 balance", clientID)
 		return 0, nil
 	}
 	bal := BalResponse{}
@@ -110,5 +113,6 @@ func GetBalance(ctx context.Context, ddb *dynamodb.Client, table string, clientI
 		return 0, err
 	}
 
+	log.Printf("get bal for client: %s, balance %d", clientID, bal.ClientBalance)
 	return bal.ClientBalance, nil
 }
