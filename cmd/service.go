@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"log"
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/nats-io/nats.go"
@@ -10,8 +11,9 @@ import (
 )
 
 type ServiceContext struct {
-	ddb   *dynamodb.Client
-	table string
+	ddb       *dynamodb.Client
+	table     string
+	serviceID string
 }
 
 func startService(nc *nats.Conn, ddb *dynamodb.Client, table string) error {
@@ -24,7 +26,7 @@ func startService(nc *nats.Conn, ddb *dynamodb.Client, table string) error {
 		return err
 	}
 
-	handlerCtx := &ServiceContext{ddb: ddb, table: table}
+	handlerCtx := &ServiceContext{ddb: ddb, table: table, serviceID: svc.Info().ID}
 
 	root := svc.AddGroup("customer")
 	root.AddEndpoint("balance", micro.HandlerFunc(handlerCtx.GetBalance),
@@ -46,6 +48,7 @@ type BalanceResponse struct {
 
 func (sc *ServiceContext) GetBalance(req micro.Request) {
 	ctx := context.TODO()
+	log.Printf("service_id: %s", sc.serviceID)
 
 	// Decode the request
 	var balanceReq BalanceRequest

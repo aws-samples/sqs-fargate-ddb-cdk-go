@@ -104,7 +104,7 @@ export class FargateServiceStack extends Stack {
       cluster: cluster,
       platformVersion: FargatePlatformVersion.VERSION1_4,
       serviceName: serviceName,
-      desiredCount: 1
+      desiredCount: 3
     });
 
     // grant service role permission to read/write to DynamoDB

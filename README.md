@@ -210,6 +210,14 @@ Here I run it with increasing the requests from 1000, 10,000 and then 100,00 API
 2024/07/17 10:22:38 Sending requests to the service...
 2024/07/17 10:26:53 Total of 100000 requests, with max concurrency 1000, and request timeout 5s, completed in 4m14.820910542s. Average call took 2.55 milliseconds
 ```
+.. after changing from 1 ECS Task to 3 Tasks, the performance changed:
+
+```
+➜  nats-fargate-ddb-cdk-go git:(feature/scale-to-3) ✗ go run benchmark.go
+2024/07/18 11:08:34 Sending requests to the service...
+2024/07/18 11:10:08 Total of 100000 requests, with max concurrency 1000, and request timeout 5s, completed in 1m33.970400417s. Average call took 0.94 milliseconds
+```
+
 
 To see the [stats](https://github.com/nats-io/nats-architecture-and-design/blob/main/adr/ADR-32.md#stats), note that the times are reported in nano-seconds:
 
