@@ -1,8 +1,10 @@
-import { App, Duration, Stack, StackProps, RemovalPolicy, Tags } from 'aws-cdk-lib';
+import { App, Stack, StackProps, RemovalPolicy, SecretValue, Tags } from 'aws-cdk-lib';
 import * as path from 'path';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import * as ecs from 'aws-cdk-lib/aws-ecs';
-import * as sqs from 'aws-cdk-lib/aws-sqs';
+import * as sm from "aws-cdk-lib/aws-secretsmanager";
+import * as fs from 'fs';
+// import * as sqs from 'aws-cdk-lib/aws-sqs';
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as cw from 'aws-cdk-lib/aws-cloudwatch';
 import { LogGroup, RetentionDays } from 'aws-cdk-lib/aws-logs';
@@ -29,12 +31,12 @@ export class FargateServiceStack extends Stack {
 
     // Update resource names with the unique suffix
     const tableName = `${config.tableName}-${this.uniqueSuffix}`;
-    const queueName = `${config.queueName}-${this.uniqueSuffix}`;
     const clusterName = `${config.clusterName}-${this.uniqueSuffix}`;
     const logGroupName = `${config.service.logGroup}-${this.uniqueSuffix}`;
     const serviceName = `${config.service.name}-${this.uniqueSuffix}`;
     const dashboardName = `${config.dashboard.name}-${this.uniqueSuffix}`;
     const vpcName = `FargateVPC-${this.uniqueSuffix}`;
+    const secretName = `${this.uniqueSuffix}/NATSCreds`;
 
     const ddbTable = new dynamodb.Table(this, "Table", {
       tableName: tableName,
@@ -43,10 +45,19 @@ export class FargateServiceStack extends Stack {
       removalPolicy: RemovalPolicy.DESTROY
     });
 
-    const queue = new sqs.Queue(this, "SqsQueue", {
-      queueName: queueName,
-      encryption: sqs.QueueEncryption.KMS_MANAGED,
-      visibilityTimeout: Duration.minutes(15),
+    // Read the content of the NGS-poc-service.creds file
+    const credsFilePath = path.join(__dirname, '../config/NGS-poc-service.creds');
+    const secretContent = fs.readFileSync(credsFilePath, 'utf8');
+    // Base64 encode the secret content
+    const secretContentBase64 = Buffer.from(secretContent).toString('base64');
+
+
+    // Create a new secret in AWS Secrets Manager with the content of NGS-poc-service.creds
+    const secret = new sm.Secret(this, secretName, {
+      secretName: secretName,
+      description: 'NATs service credentials',
+      secretStringValue: SecretValue.unsafePlainText(secretContent),
+      removalPolicy: RemovalPolicy.DESTROY //change it if you want to keep the secret
     });
 
     const asset = new DockerImageAsset(this, "GoDockerImage", {
@@ -55,13 +66,13 @@ export class FargateServiceStack extends Stack {
 
     const vpc = new ec2.Vpc(this, "EcsVpc", {
       maxAzs: 3,
-      vpcName: vpcName
+      vpcName: vpcName,
     });
 
     const cluster = new ecs.Cluster(this, "EcsCluster", {
       vpc: vpc,
       clusterName: clusterName,
-      containerInsights: false
+      containerInsights: false,      
     });
 
     const logGroup = new LogGroup(this, "FargateLogGroup", {
@@ -79,7 +90,7 @@ export class FargateServiceStack extends Stack {
       image: ContainerImage.fromDockerImageAsset(asset),
       taskDefinition: taskDef,
       environment: {
-        SQS_URL: queue.queueUrl,
+        NATS_CREDENTIALS: secretContentBase64,
         DDB_TABLE: ddbTable.tableName
       },
       logging: new ecs.AwsLogDriver({
@@ -96,9 +107,10 @@ export class FargateServiceStack extends Stack {
       desiredCount: 1
     });
 
-    queue.grantConsumeMessages(taskDef.taskRole);
-    ddbTable.grantWriteData(taskDef.taskRole);
-
+    // grant service role permission to read/write to DynamoDB
+    secret.grantRead(taskDef.taskRole)
+    ddbTable.grantReadWriteData(taskDef.taskRole)
+   
     const dashboardStart = "-P1D";
     const dashboard = new cw.Dashboard(this, "ServiceDashboard", {
       dashboardName: dashboardName,
@@ -131,6 +143,7 @@ export class FargateServiceStack extends Stack {
 
     // Add tags to all resources in the stack
     this.addTags();
+    
   }
 
   private static getCurrentUser(): string {

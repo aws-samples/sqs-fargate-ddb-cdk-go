@@ -2,28 +2,22 @@ package main
 
 import (
 	"context"
-	"encoding/json"
-	"errors"
+	"encoding/base64"
 	"fmt"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
-	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
-	"github.com/aws/aws-sdk-go-v2/service/sqs"
+	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
+	"github.com/nats-io/nats.go"
+	"github.com/nats-io/nats.go/jetstream"
 )
 
 var cfg aws.Config
-
-const (
-	visibilityTimeout = 60 * 10
-	waitingTimeout    = 20
-)
 
 type MsgType struct {
 	Message string `json:"message"`
@@ -55,127 +49,94 @@ func init() {
 	}
 }
 
+func getSecret(secretName string) (*secretsmanager.GetSecretValueOutput, error) {
+
+	// Create a Secrets Manager client
+	svc := secretsmanager.NewFromConfig(cfg)
+
+	// Retrieve the secret value
+	result, err := svc.GetSecretValue(context.TODO(), &secretsmanager.GetSecretValueInput{
+		SecretId: aws.String(secretName),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve secret %q: %v", secretName, err)
+	}
+
+	return result, nil
+}
+
 func main() {
-	log.Println("Service is started")
-	ctx, cancel := context.WithCancel(context.Background())
+	log.Println("service bootstrapping ...")
+	ctx, _ := signal.NotifyContext(context.Background(), os.Interrupt)
 
 	signalChan := make(chan os.Signal, 1)
 	signal.Notify(signalChan, os.Interrupt, syscall.SIGTERM)
 
-	queueUrl := os.Getenv("SQS_URL")
-	log.Printf("QUEUE_URL: %s", queueUrl)
-
 	tableName := os.Getenv("DDB_TABLE")
 	log.Printf("DDB_TABLE: %s", tableName)
 
-	// Create S3 service client
-	sqsSvc := sqs.NewFromConfig(cfg)
-
-	// Create DDB service client
+	log.Println("connecting to dynamo db ...")
 	ddbSvc := dynamodb.NewFromConfig(cfg)
 
-	defer func() {
-		signal.Stop(signalChan)
-		cancel()
-	}()
-
-loop:
-	for {
-		select {
-		case <-signalChan: //if get SIGTERM
-			log.Println("Got SIGTERM signal, cancelling the context")
-			cancel() //cancel context
-
-		default:
-			_, err := processSQS(ctx, sqsSvc, queueUrl, ddbSvc, tableName)
-
-			if err != nil {
-				if errors.Is(err, context.Canceled) {
-					log.Printf("stop processing, context is cancelled %v", err)
-					break loop
-				}
-
-				log.Fatalf("error processing SQS %v", err)
-			}
-		}
-	}
-	log.Println("service is safely stopped")
-
-}
-
-func processSQS(ctx context.Context, sqsSvc *sqs.Client, queueUrl string, ddbSvc *dynamodb.Client, tableName string) (bool, error) {
-	input := &sqs.ReceiveMessageInput{
-		QueueUrl:            &queueUrl,
-		MaxNumberOfMessages: 1,
-		VisibilityTimeout:   visibilityTimeout,
-		WaitTimeSeconds:     waitingTimeout, // use long polling
-	}
-
-	resp, err := sqsSvc.ReceiveMessage(ctx, input)
-
+	log.Println("connecting to NATS ...")
+	nc, err := NatsConnect(ctx)
 	if err != nil {
-		return false, fmt.Errorf("error receiving message %w", err)
+		log.Fatalf("error connecting to NATS %v", err)
 	}
 
-	log.Printf("received messages: %v", len(resp.Messages))
-	if len(resp.Messages) == 0 {
-		return false, nil
-	}
-
-	for _, msg := range resp.Messages {
-		var newMsg MsgType
-		id := *msg.MessageId
-
-		err := json.Unmarshal([]byte(*msg.Body), &newMsg)
-		if err != nil {
-			return false, fmt.Errorf("error unmarshalling %w", err)
-		}
-
-		log.Printf("message id %s is received from SQS: %#v", id, newMsg.Message)
-
-		err = putToDDB(ctx, ddbSvc, tableName, id, newMsg.Message)
-		if err != nil {
-			return false, fmt.Errorf("error putting message to DDB %w", err)
-		}
-		log.Printf("message id %s is saved in DDB", id)
-
-		_, err = sqsSvc.DeleteMessage(ctx, &sqs.DeleteMessageInput{
-			QueueUrl:      &queueUrl,
-			ReceiptHandle: msg.ReceiptHandle,
-		})
-
-		if err != nil {
-			return false, fmt.Errorf("error deleting message from SQS %w", err)
-		}
-		log.Printf("message id %s is deleted from queue", id)
-
-	}
-	return true, nil
-
-}
-
-func GetUTCTimestampNow() string {
-	t := time.Now().UTC()
-	return t.Format("2006-01-02T15:04:05.000Z")
-}
-
-func putToDDB(ctx context.Context, ddbSvc *dynamodb.Client, tableName string, msgId string, message string) error {
-	inputMap := make(map[string]types.AttributeValue)
-
-	utcTimeISO := GetUTCTimestampNow()
-
-	inputMap["id"] = &types.AttributeValueMemberS{Value: msgId}
-	inputMap["timestamp_utc"] = &types.AttributeValueMemberS{Value: utcTimeISO}
-	inputMap["message"] = &types.AttributeValueMemberS{Value: message}
-
-	input := &dynamodb.PutItemInput{
-		Item:      inputMap,
-		TableName: aws.String(tableName),
-	}
-
-	_, err := ddbSvc.PutItem(ctx, input)
+	log.Println("connecting to NATS/Jetstream...")
+	js, err := jetstream.New(nc)
 	if err != nil {
+		log.Fatalf("error connecting to Jetstream %v", err)
+	}
+
+	if err = seedDb(ctx, js, ddbSvc, tableName); err != nil {
+		log.Fatalf("error seeding database %v", err)
+	}
+
+	if err = startService(nc, ddbSvc, tableName); err != nil {
+		log.Fatalf("error starting service %v", err)
+	}
+
+	log.Println("service ready")
+	<-ctx.Done()
+	log.Println("service stopped")
+}
+
+func NatsConnect(ctx context.Context) (*nats.Conn, error) {
+	err := captureCredsToFile()
+	if err != nil {
+		return nil, err
+	}
+	url := "tls://connect.ngs.global"
+	credsFile := "/tmp/nats.creds"
+	return nats.Connect(url, nats.UserCredentials(credsFile))
+}
+
+func captureCredsToFile() error {
+	base64encodedCreds := os.Getenv("NATS_CREDENTIALS")
+	// Decode the base64 string
+	decodedBytes, err := base64.StdEncoding.DecodeString(base64encodedCreds)
+	if err != nil {
+		log.Println("Error decoding base64 string:", err)
 		return err
 	}
+	// Write the decoded bytes to a file
+	// Create a new file
+	file, err := os.Create("/tmp/nats.creds")
+	if err != nil {
+		log.Println("Error creating file:", err)
+		return err
+	}
+	defer file.Close()
+
+	// Write the decoded bytes to the file
+	_, err = file.Write(decodedBytes)
+	if err != nil {
+		log.Println("Error writing to file:", err)
+		return err
+	}
+
+	log.Println("Decoded bytes written to file successfully")
 	return nil
 }
