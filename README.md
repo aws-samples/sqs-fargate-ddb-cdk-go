@@ -101,6 +101,7 @@ New KV Bucket `config`
 
     `make deploy`
 
+If you see the error `fail: unable to get local issuer certificate`, turn off internet security in ZScaler and retry.
 
 
 ## How it works
