@@ -50,14 +50,15 @@ func create(ctx context.Context, client *syncp.APIClient, initials, systemID str
 	name := "POC-" + initials
 	defaultPayload := int64(1048576)
 	defaultSubs := int64(50)
-	// defaultConn := int64(5)
+	defaultData := int64(-1)
+	defaultConn := int64(5)
 	// defaultLeaf := int64(1)
-	// defaultExports := int64(1)
-	// defaultImports := int64(5)
-	// defaultWildcards := true
+	defaultExports := int64(1)
+	defaultImports := int64(5)
+	defaultWildcards := true
 	// defaultConsumer := int64(10)
 	// defaultDiskMaxStreamBytes := int64(1048576)
-	// defaultDiskStorage := int64(1048576)
+	// defaultDiskStorage := int64(2684354560)
 	// defaultMaxBytesRequired := true
 	// defaultSubscriptions := int64(10)
 	// defaultData := int64(-1)
@@ -72,22 +73,22 @@ func create(ctx context.Context, client *syncp.APIClient, initials, systemID str
 			Authorization: nil,
 			Limits: &syncp.OperatorLimits{
 				NatsLimits: syncp.NatsLimits{
-					Data:    nil,
+					Data:    &defaultData,
 					Payload: &defaultPayload,
 					Subs:    &defaultSubs,
 				},
 				AccountLimits: syncp.AccountLimits{
-					// Conn:      &defaultConn,
-					// Exports:   &defaultExports,
-					// Imports:   &defaultImports,
+					Conn:    &defaultConn,
+					Exports: &defaultExports,
+					Imports: &defaultImports,
 					// Leaf:      &defaultLeaf,
-					// Wildcards: &defaultWildcards,
+					Wildcards: &defaultWildcards,
 				},
 				JetStreamLimits: syncp.JetStreamLimits{
-					// Consumer:           &defaultConsumer,
-					// DiskMaxStreamBytes: &defaultDiskMaxStreamBytes,
-					// DiskStorage:        &defaultDiskStorage,
-					// MaxBytesRequired:   &defaultMaxBytesRequired,
+					// 	Consumer:           &defaultConsumer,
+					// 	DiskMaxStreamBytes: &defaultDiskMaxStreamBytes,
+					// 	DiskStorage:        &defaultDiskStorage,
+					// 	MaxBytesRequired:   &defaultMaxBytesRequired,
 				},
 			},
 		},
