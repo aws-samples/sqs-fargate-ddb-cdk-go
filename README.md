@@ -5,7 +5,7 @@ This pattern demonstrates how to build and deploy Fargate service using Go which
 
 ## Architecture
 
-Here's a high-level overview of our serverless architecture:
+Here's a high-level overview of the architecture:
 
 ```mermaid
 graph TD
@@ -24,6 +24,26 @@ graph TD
     style T fill:#ff9,stroke:#333,stroke-width:2px
     style B fill:#9fc,stroke:#333,stroke-width:2px
     style C fill:#f9c,stroke:#333,stroke-width:2px
+```
+
+TODO - Add control plane
+
+To create an access token, go to profile (top right) generate personal access token.
+
+https://cloud.synadia.com/api-docs
+
+Account: Default
+Personal Access Token: control-plane-agent
+
+DOES NOT WORK
+```
+nsc add account POC-DO 
+nsc add user service --account POC-DO
+nsc edit user --name service --account POC-DO --allow-pub ">" --allow-sub ">"
+syn-cp system import-account --system 2jJ2e6WvEiKdR7z1svJwxAfGJyg
+
+nsc add user client --account POC-DO
+nsc edit user --name client --account POC-DO --allow-pub ">" --allow-sub ">"
 ```
 
 ### Component Breakdown
