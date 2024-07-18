@@ -72,7 +72,7 @@ export class FargateServiceStack extends Stack {
     const cluster = new ecs.Cluster(this, "EcsCluster", {
       vpc: vpc,
       clusterName: clusterName,
-      containerInsights: false,      
+      containerInsights: true,      
     });
 
     const logGroup = new LogGroup(this, "FargateLogGroup", {
