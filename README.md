@@ -26,7 +26,8 @@ graph TD
     style C fill:#f9c,stroke:#333,stroke-width:2px
 ```
 
-TODO - Add control plane
+### NATS Account / 
+
 
 To create an access token, go to profile (top right) generate personal access token.
 
@@ -35,16 +36,11 @@ https://cloud.synadia.com/api-docs
 Account: Default
 Personal Access Token: control-plane-agent
 
-DOES NOT WORK
-```
-nsc add account POC-DO 
-nsc add user service --account POC-DO
-nsc edit user --name service --account POC-DO --allow-pub ">" --allow-sub ">"
-syn-cp system import-account --system 2jJ2e6WvEiKdR7z1svJwxAfGJyg
+Using API: https://cloud.synadia.com/api-docs the [control-plane](control-plane/main.go) app has options to create / delete / list accounts.
 
-nsc add user client --account POC-DO
-nsc edit user --name client --account POC-DO --allow-pub ">" --allow-sub ">"
-```
+This would be easily extended to also create the Users/ credentials / KV bucket etc that we created manually for the POC
+
+
 
 ### Component Breakdown
 

@@ -24,7 +24,7 @@ func main() {
 	case "create":
 		create(ctx, client, opt.Initials, opt.SystemID)
 	case "delete":
-		delete(ctx, client, opt.Initials)
+		delete(ctx, client, opt.Initials, opt.SystemID)
 	}
 }
 
@@ -45,9 +45,21 @@ func list(ctx context.Context, client *syncp.APIClient, systemID string) {
 	}
 }
 
+func accountName(initials string) string {
+	return "POC-" + initials
+}
+
 func create(ctx context.Context, client *syncp.APIClient, initials, systemID string) {
 
-	name := "POC-" + initials
+	name := accountName(initials)
+	accounts, err := getAccounts(ctx, client, systemID)
+	if err != nil {
+		handleApiError(err)
+	}
+	if _, ok := accounts[name]; ok {
+		log.Fatalf("Account with name %s already exists found", name)
+	}
+
 	defaultPayload := int64(1048576)
 	defaultSubs := int64(50)
 	defaultData := int64(-1)
@@ -100,8 +112,40 @@ func create(ctx context.Context, client *syncp.APIClient, initials, systemID str
 	log.Printf("Account created: %s\n", resp.Name)
 }
 
-func delete(ctx context.Context, client *syncp.APIClient, initials string) {
-	panic("TODO")
+func delete(ctx context.Context, client *syncp.APIClient, initials, systemID string) {
+	name := accountName(initials)
+	log.Printf("Deleting account with name %s\n", name)
+
+	accounts, err := getAccounts(ctx, client, systemID)
+	if err != nil {
+		handleApiError(err)
+	}
+	if _, ok := accounts[name]; !ok {
+		log.Fatalf("Account with name %s not found", name)
+	}
+
+	log.Printf("Deleting account id %s", accounts[name].Id)
+
+	_, err = client.AccountAPI.DeleteAccount(ctx, accounts[name].Id).Execute()
+	if err != nil {
+		handleApiError(err)
+	}
+}
+
+// getAccounts returns a map of accounts with the given name
+func getAccounts(ctx context.Context, client *syncp.APIClient, systemID string) (map[string]syncp.AccountViewResponse, error) {
+	accountList, _, err := client.SystemAPI.ListAccounts(ctx, systemID).Execute()
+	if err != nil {
+		return nil, err
+	}
+	accounts := map[string]syncp.AccountViewResponse{}
+	for _, account := range accountList.Items {
+		if _, ok := accounts[account.Name]; ok {
+			log.Fatalf("Found multiple accounts with name %s, aborting", account.Name)
+		}
+		accounts[account.Name] = account
+	}
+	return accounts, nil
 }
 
 type Options struct {

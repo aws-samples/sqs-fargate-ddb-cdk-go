@@ -30,3 +30,6 @@ cp-list:
 
 cp-create:
 	cd control-plane;	go run main.go --action create --initials DO
+
+cp-delete:
+	cd control-plane;	go run main.go --action delete --initials DO	
