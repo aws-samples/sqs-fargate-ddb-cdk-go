@@ -18,3 +18,18 @@ deploy: build_docker
 destroy:
 	cd cdk;\
 	cdk destroy --profile ${AWS_PROFILE} 
+
+benchmark:
+	go run benchmark.go
+
+cp-list-djo:
+	cd control-plane;	go run main.go --action list --systemId 2iM54Ea75kFpyBM37W7Ee5Yhn4A --initials DO
+
+cp-list:
+	cd control-plane;	go run main.go --action list --initials DO
+
+cp-create:
+	cd control-plane;	go run main.go --action create --initials DO
+
+cp-delete:
+	cd control-plane;	go run main.go --action delete --initials DO	

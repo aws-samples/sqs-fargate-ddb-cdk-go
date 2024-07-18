@@ -5,7 +5,7 @@ This pattern demonstrates how to build and deploy Fargate service using Go which
 
 ## Architecture
 
-Here's a high-level overview of our serverless architecture:
+Here's a high-level overview of the architecture:
 
 ```mermaid
 graph TD
@@ -25,6 +25,22 @@ graph TD
     style B fill:#9fc,stroke:#333,stroke-width:2px
     style C fill:#f9c,stroke:#333,stroke-width:2px
 ```
+
+### Automated setup of NATS resources
+
+For the purposes of the POC, the NATS resources (Account / User / KV bucket) were setup manually (see deployment steps below).
+
+In a real system the LoyaltyHub control plane API would need to create these resources programatically. A small [application](control-plane/main.go) was created to verify that this is possible.  It uses the Synadia Cloud API following these [instructions](https://docs.synadia.com/cloud/faq#how-can-i-use-the-synadia-cloud-api) and using the [Control Plane Go SDK](https://github.com/synadia-io/control-plane-sdk-go) and a [Personal Access Token](https://cloud.synadia.com/profile/personal-access-tokens).
+
+To run the application:
+
+- Create a Personal access token, go to profile (top right) generate personal access token, and save it to a file `cdk/config/control-plane-agent.token`
+- Run `make cp-create` to create a new Account `POC-DO`
+- Run `make cp-delete` to delete Account `POC-DO`
+- Run `make cp-list` to list Accounts
+
+This code can be extended to also create the Users/ credentials / KV bucket etc that we created manually for the POC
+
 
 ### Component Breakdown
 

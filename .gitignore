@@ -1,2 +1,3 @@
 ./bin
 cdk/config/*.creds
+cdk/config/control-plane-agent.token
