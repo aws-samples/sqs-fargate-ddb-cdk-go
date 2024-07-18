@@ -26,20 +26,20 @@ graph TD
     style C fill:#f9c,stroke:#333,stroke-width:2px
 ```
 
-### NATS Account / 
+### Automated setup of NATS resources
 
+For the purposes of the POC, the NATS resources (Account / User / KV bucket) were setup manually (see deployment steps below).
 
-To create an access token, go to profile (top right) generate personal access token.
+In a real system the LoyaltyHub control plane API would need to create these resources programatically. A small [application](control-plane/main.go) was created to verify that this is possible.  It uses the Synadia Cloud API following these [instructions](https://docs.synadia.com/cloud/faq#how-can-i-use-the-synadia-cloud-api) and using the [Control Plane Go SDK](https://github.com/synadia-io/control-plane-sdk-go) and a [Personal Access Token](https://cloud.synadia.com/profile/personal-access-tokens).
 
-https://cloud.synadia.com/api-docs
+To run the application:
 
-Account: Default
-Personal Access Token: control-plane-agent
+- Create a Personal access token, go to profile (top right) generate personal access token, and save it to a file `cdk/config/control-plane-agent.token`
+- Run `make cp-create` to create a new Account `POC-DO`
+- Run `make cp-delete` to delete Account `POC-DO`
+- Run `make cp-list` to list Accounts
 
-Using API: https://cloud.synadia.com/api-docs the [control-plane](control-plane/main.go) app has options to create / delete / list accounts.
-
-This would be easily extended to also create the Users/ credentials / KV bucket etc that we created manually for the POC
-
+This code can be extended to also create the Users/ credentials / KV bucket etc that we created manually for the POC
 
 
 ### Component Breakdown
