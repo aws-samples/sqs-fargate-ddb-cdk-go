@@ -14,11 +14,13 @@ graph TD
     T[Synadia Cloud]
     B[Get Balance Microservice]
     C[(DynamoDB Table)]
+    Q[(NATS Persistent Queue)]
 
     U <-->|NATS protocol| T
     U2 <-->|HTTP protocol| T
     T -->|Authenticated Request| B
     B -->|Read/Write| C
+    B -->|Publish response| Q
 
     style U fill:#f9f,stroke:#333,stroke-width:4px
     style T fill:#ff9,stroke:#333,stroke-width:2px
@@ -81,20 +83,31 @@ This architecture allows for high scalability, low operational overhead, and pay
 
     `cd nats-fargate-ddb-cdk-go`
 
+3. Turn off ZScaler 'Internet Security' otherwise the docker build wont work.
 
-3. Initialize dependencies:
+4. Initialize dependencies:
 
     `make init`
 
 
-4. Manually create Synadia Account, Users, KV bucket
+5. Manually create Synadia Account, Users, KV bucket & Stream
 
 New Account: "POC"
 New Users: `service` and `client`
 Download credentials file for each user
 New KV Bucket `config`
+New Stream: 
+    name: `customer-balances` 
+    Storage: `file`
+    subject: `customer.balance.>`
+    retention > discard policy: `old`
+    Max age: `7 days`
+    Max bytes: `10Mb`
+    Replicas: `3`
 
-5. Extract credentials for deployment via CDK
+
+
+6. Extract credentials for deployment via CDK
     
     `cp ~/Downloads/NGS-poc-service.creds nats-fargate-ddb-cdk-go/cdk/config/NGS-poc-service.creds`
 
@@ -113,7 +126,7 @@ New KV Bucket `config`
 
 
 
-6. From the command line, use the following commands to deploy the stack using CDK:
+7. From the command line, use the following commands to deploy the stack using CDK:
 
     `make deploy`
 
