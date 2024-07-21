@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
@@ -11,6 +12,7 @@ import (
 )
 
 type ServiceContext struct {
+	nc        *nats.Conn
 	ddb       *dynamodb.Client
 	table     string
 	serviceID string
@@ -26,7 +28,7 @@ func startService(nc *nats.Conn, ddb *dynamodb.Client, table string) error {
 		return err
 	}
 
-	handlerCtx := &ServiceContext{ddb: ddb, table: table, serviceID: svc.Info().ID}
+	handlerCtx := &ServiceContext{nc: nc, ddb: ddb, table: table, serviceID: svc.Info().ID}
 
 	root := svc.AddGroup("customer")
 	root.AddEndpoint("balance", micro.HandlerFunc(handlerCtx.GetBalance),
@@ -70,6 +72,13 @@ func (sc *ServiceContext) GetBalance(req micro.Request) {
 	resp, err := json.Marshal(bal)
 	if err != nil {
 		req.Error("500", "INTERNAL_ERROR - encode json", []byte(err.Error()))
+		return
+	}
+
+	// Publish the response for Data Platform to read
+	err = sc.nc.Publish(fmt.Sprintf("customer.balance.%s", balanceReq.CustomerID), resp)
+	if err != nil {
+		req.Error("500", "INTERNAL_ERROR - publish", []byte(err.Error()))
 		return
 	}
 
