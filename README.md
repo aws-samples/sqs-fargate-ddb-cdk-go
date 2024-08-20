@@ -2,19 +2,6 @@
 
 This pattern demonstrates how to build and deploy Fargate service using Go which receives microservice messages from NATSs queries a DynamoDB table, and returns a response.
 
-## CDK
-
-`export AWS_PROFILE=training` then `aws s3 ls` to check if not do aws sso login.
-Remember to turn off zscaler
-
-The `cdk.json` file tells the CDK Toolkit how to execute your app.
-
-## Useful commands
-
- * `cdk deploy`      deploy this stack to your default AWS account/region
- * `cdk diff`        compare deployed stack with current state
- * `cdk synth`       emits the synthesized CloudFormation template
- * `go test`         run unit tests
 
 
 ## Architecture
@@ -99,9 +86,6 @@ This architecture allows for high scalability, low operational overhead, and pay
 
 3. Turn off ZScaler 'Internet Security' otherwise the docker build wont work.
 
-4. Initialize dependencies:
-
-    `make init`
 
 
 5. Manually create Synadia Account, Users, KV bucket & Stream
@@ -142,7 +126,17 @@ New Stream:
 
 7. From the command line, use the following commands to deploy the stack using CDK:
 
-    `make deploy`
+```bash
+export AWS_PROFILE=training
+
+aws sso login
+
+# Check connected to training account by running this
+aws s3 ls
+
+# Deploy the code
+make deploy
+```
 
 If you see the error `fail: unable to get local issuer certificate`, turn off internet security in ZScaler and retry.
 
