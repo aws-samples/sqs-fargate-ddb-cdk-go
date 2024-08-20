@@ -1,6 +1,7 @@
 {
+  "projectBaseDirectory": "",
+  "natsCredentialsFile": "cdk/config/NGS-poc-service.creds",
   "tableName": "sqs-fargate-ddb-table",
-  "queueName":"sqs-fargate-queue",
   "clusterName":"go-service-cluster",
   "service": {
     "name": "go-fargate-service",
@@ -8,10 +9,5 @@
     "cpu": 512,
     "memory" : 1024,
     "logStreamPrefix":"go-service"
-  },
-  "dashboard":{
-    "name":"go-service-dashboard",
-    "ddbWidgetTitle":"Saved to DDB",
-    "sqsWidgetTitle":"Received from SQS"
   }
 }

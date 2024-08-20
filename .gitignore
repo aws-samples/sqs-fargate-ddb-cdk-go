@@ -1,3 +1,20 @@
-./bin
-cdk/config/*.creds
-cdk/config/control-plane-agent.token
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool, specifically when used with LiteIDE
+*.out
+
+# go.sum should be committed
+!go.sum
+
+# CDK asset staging directory
+.cdk.staging
+cdk.out
+cdk/config/NGS-poc-service.creds

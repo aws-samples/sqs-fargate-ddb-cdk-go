@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"encoding/base64"
-	"fmt"
 	"log"
 	"os"
 	"os/signal"
@@ -12,7 +11,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
-	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 )
@@ -47,22 +45,6 @@ func init() {
 			log.Fatalf("error loading config %v", err)
 		}
 	}
-}
-
-func getSecret(secretName string) (*secretsmanager.GetSecretValueOutput, error) {
-
-	// Create a Secrets Manager client
-	svc := secretsmanager.NewFromConfig(cfg)
-
-	// Retrieve the secret value
-	result, err := svc.GetSecretValue(context.TODO(), &secretsmanager.GetSecretValueInput{
-		SecretId: aws.String(secretName),
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve secret %q: %v", secretName, err)
-	}
-
-	return result, nil
 }
 
 func main() {

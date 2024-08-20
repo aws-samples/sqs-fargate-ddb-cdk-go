@@ -3,10 +3,8 @@
 .EXPORT_ALL_VARIABLES:
 AWS_PROFILE = training
 
-
-init:
-	cd cdk;
-	npm i
+test:
+	cd cdk; go test -v ./...
 
 build_docker:
 	docker build -t go-fargate .
