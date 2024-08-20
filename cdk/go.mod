@@ -1,6 +1,6 @@
 module go-fargate-service/cdk
 
-go 1.22
+go 1.23
 
 require (
 	github.com/aws/aws-cdk-go/awscdk/v2 v2.152.0

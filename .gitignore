@@ -18,3 +18,4 @@
 .cdk.staging
 cdk.out
 cdk/config/NGS-poc-service.creds
+cdk/template.json
