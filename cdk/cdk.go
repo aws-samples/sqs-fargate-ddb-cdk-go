@@ -21,7 +21,7 @@ func main() {
 	defer jsii.Close()
 
 	// Load the configuration
-	config, err := loadConfig("cdk/config/project-config.json")
+	config, err := loadConfig("config/project-config.json")
 	if err != nil {
 		log.Fatalf("Error loading config: %v", err)
 	}
@@ -42,6 +42,8 @@ type TestCdkGoStackProps struct {
 }
 
 func NewTestCdkGoStack(scope constructs.Construct, id string, config *ProjectConfig, props *TestCdkGoStackProps) awscdk.Stack {
+
+	log.Printf("Loaded config: %+v", config)
 
 	ctx := context.Background()
 	var sprops awscdk.StackProps

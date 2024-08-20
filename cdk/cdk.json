@@ -1,5 +1,5 @@
 {
-  "app": "go mod download && go test",
+  "app": "go mod download && go run cdk.go cdk_username.go cdk_email.go cdk_project_config.go",
   "watch": {
     "include": [
       "**"

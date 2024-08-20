@@ -18,7 +18,7 @@ type ProjectConfig struct {
 		CPU             int    `json:"cpu"`
 		Memory          int    `json:"memory"`
 		LogStreamPrefix string `json:"logStreamPrefix"`
-	}
+	} `json:"service"`
 }
 
 func loadConfig(filename string) (*ProjectConfig, error) {

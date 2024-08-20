@@ -4,6 +4,9 @@ This pattern demonstrates how to build and deploy Fargate service using Go which
 
 ## CDK
 
+`export AWS_PROFILE=training` then `aws s3 ls` to check if not do aws sso login.
+Remember to turn off zscaler
+
 The `cdk.json` file tells the CDK Toolkit how to execute your app.
 
 ## Useful commands

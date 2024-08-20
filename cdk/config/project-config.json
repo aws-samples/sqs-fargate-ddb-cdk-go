@@ -1,6 +1,6 @@
 {
-  "projectBaseDirectory": "",
-  "natsCredentialsFile": "cdk/config/NGS-poc-service.creds",
+  "projectBaseDirectory": "../",
+  "natsCredentialsFile": "config/NGS-poc-service.creds",
   "tableName": "sqs-fargate-ddb-table",
   "clusterName":"go-service-cluster",
   "service": {
